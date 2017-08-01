@@ -1,10 +1,11 @@
 # AcuteTBI
 
 ## Run the codes
-1. (option 1): run *./Modeldata_preparation.m* to build dataset for training or test Change the path of patients data in *./ImageProcess_Scripts/BrainImage_pid.m*
-   (option 2): load data: 
+1.1. (option 1): run *./Modeldata_preparation.m* to build dataset for training or test Change the path of patients data in *./ImageProcess_Scripts/BrainImage_pid.m*
 
-2. use ./Model/training_script.m to train and test the model
+1.2. (option 2): load data: 
+
+2. use *./Model/training_script.m* to train and test the model
 
 
 ## Description 
