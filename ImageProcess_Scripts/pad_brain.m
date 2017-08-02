@@ -1,4 +1,4 @@
-function out = pad_brain (brain)
+function out = pad_brain (brain, step_size)
 %gabor_wlen, gabor_orie
 
 out = zeros(512);
@@ -11,9 +11,9 @@ end
 center = [stats.BoundingBox(1) + stats.BoundingBox(3)/2,...
           stats.BoundingBox(2) + stats.BoundingBox(4)/2];
 sc_ftr = 1.2;
-step_size = 0.1;
 
-method = 1;
+
+method = 0;
 
 switch method
     case 0
@@ -85,8 +85,8 @@ while sc_ftr > 1
         og_s_mask = logical(ceil(brain_s));
         
         % Find new enlarged brain and eroded brain mask
-        lg_mask = imdilate(og_l_mask, strel('disk', 1));
-        sm_mask = imerode(og_s_mask, strel('disk', 1));
+        lg_mask = imdilate(og_l_mask, strel('disk', 2));
+        sm_mask = imerode(og_s_mask, strel('disk', 2));
         
         % Find to fill and to delete mask
         to_fill = xor(og_l_mask, lg_mask);

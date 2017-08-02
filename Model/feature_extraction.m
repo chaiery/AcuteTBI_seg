@@ -1,9 +1,17 @@
-function [dataset] = feature_extraction(dataset, imgori_sub)
-    %% Extract Rectangular region around superpixel
-    sizeofsub = size(imgori_sub);
-    imgori_sub(imgori_sub==imgori_sub(1)) = 0;
-    imgori_sub = pad_brain(imgori_sub);
+function [dataset] = feature_extraction(dataset, imgori)
     
+    sizeofsub = size(imgori);
+    
+    mask = find(imgori==imgori(1));
+    imgori(mask) = 0;
+    imgori = pad_brain(imgori, 0.1);
+    
+    %% Total variation denoising
+    img_tv2=PDHG(double(imgori),.05,10^(-3));
+    img_tv2(img_tv2<5)=0;
+    imgori = img_tv2;
+    
+    %% Extract Rectangular region around superpixel
     for i = 1: length(dataset)
         x1 = floor(dataset(i).BoundingBox(1,1));
         if x1 == 0
@@ -16,7 +24,7 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
         w = dataset(i).BoundingBox(1,3);
         h = dataset(i).BoundingBox(1,4);
         
-        [m,n] = size(imgori_sub);
+        [m,n] = size(imgori);
         if (y1+h)>m
             h = h-1;
         end
@@ -24,7 +32,7 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
             w = w-1;
         end
         
-        dataset(i).recpatch = imgori_sub(y1:y1+h,x1:x1+w);
+        dataset(i).recpatch = imgori(y1:y1+h,x1:x1+w);
         dataset(i).y_range = y1:y1+h;
         dataset(i).x_range = x1:x1+w;
         
@@ -48,7 +56,7 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
             y_range = y_center-15:y_center+16;
         end
             
-        dataset(i).recpatch32 = imgori_sub(y_range,x_range);
+        dataset(i).recpatch32 = imgori(y_range,x_range);
         dataset(i).y_range_32 = y_range;
         dataset(i).x_range_32 = x_range;
     end
@@ -57,10 +65,10 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
     %% 1. Intensity **
     % Median of pixels' intensities
     % The number of features: 4
-    %intensity_median = mean(imgori_sub(:));
-    %imgori_sub_2 = imgori_sub - intensity_median;
+    %intensity_median = mean(imgori(:));
+    %imgori_2 = imgori - intensity_median;
     for i = 1: length(dataset)
-        sp_intensity = double(imgori_sub(dataset(i).PixelIdxList));
+        sp_intensity = double(imgori(dataset(i).PixelIdxList));
         dataset(i).intensity_features = [mean(sp_intensity), var(sp_intensity),skewness(sp_intensity),kurtosis(sp_intensity)];
     end
     
@@ -76,44 +84,37 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
    %% 3. Gabor filter ** 
     % The number of features: 4*6*6 = 144
     % Build Gabor filters
-    numRows = 256; % Need to be tuned
-    numCols = 256;  % Need to be tuned
+    img_gabor = pad_brain(imgori,0.01);
+    numRows = 100; % Need to be tuned 256?
+    numCols = 100;  % Need to be tuned 256?
     wavelengthMin = 4/sqrt(2);
     wavelengthMax = hypot(numRows,numCols);
     n = floor(log2(wavelengthMax/wavelengthMin));
-    wavelength = 2.^(0:(n-2)) * wavelengthMin;
+    wavelength = 2.^(0:0.5:(n-2)) * wavelengthMin;
     deltaTheta = 30;
     orientation = 0:deltaTheta:(180-deltaTheta);
     % These combinations of frequency and orientation are taken from [Jain,1991] 
 
     g = gabor(wavelength,orientation);
-    gabormag = imgaborfilt(imgori_sub,g);
+    gabormag = imgaborfilt(img_gabor,g);
     % Filter 
     for i = 1: length(dataset)
-       %sp = dataset(i).recpatch; 
-       %gabormag = imgaborfilt(sp,g);
        
        gabor_features_mean = repelem(0,length(g));
        gabor_features_var = repelem(0,length(g));
        gabor_features_mean_32 = repelem(0,length(g));
        gabor_features_var_32 = repelem(0,length(g));
-       %gabor_features_skew = repelem(0,length(g)*2);
-       %gabor_features_kurt = repelem(0,length(g)*2);
 
        for j = 1:length(g)
-        %{
-        sigma = 0.5*g(j).Wavelength;
-        K = 3;
-        gabormag(:,:,j) = imgaussfilt(gabormag(:,:,j),K*sigma);
-        %}
         output = gabormag(:,:,j);
-        output_32 = output(dataset(i).y_range_32, dataset(i).x_range_32);
+        output(mask)=0;
+        %output_32 = output(dataset(i).y_range_32, dataset(i).x_range_32);
         output = output(dataset(i).PixelIdxList);
         
         gabor_features_mean(j) = mean(output(:));
         gabor_features_var(j) = var(output(:));
-        gabor_features_mean_32(j) = mean(output_32(:));
-        gabor_features_var_32(j) = var(output_32(:));
+        %gabor_features_mean_32(j) = mean(output_32(:));
+        %gabor_features_var_32(j) = var(output_32(:));
         %gabor_features_skew(j) = skewness(output(:));
         %gabor_features_kurt(j) = kurtosis(output(:));
        end
@@ -138,12 +139,14 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
 
     % Create gabor filter image
     gabor_filt = gabor(wavelength,orientation);
-    gabormag = imgaborfilt(imgori_sub,gabor_filt);
+    gabormag = imgaborfilt(imgori,gabor_filt);
     
     % Mean filtering
 	mean_img = zeros(size(gabormag));
     for i = 1 : size(gabormag, 3)
-        mean_img(:, :, i) = medfilt2(gabormag(:, :, i));
+         output = medfilt2(gabormag(:, :, i));
+         output(mask) = 0;
+         mean_img(:, :, i) = output;
     end
     
     num_wlen = size(wavelength, 2);
@@ -200,23 +203,23 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
         glcm_32 = graycomatrix(rec_32,'NumLevels',16);
         stats_32 = graycoprops(glcm_32);
         
-        dataset(i).glcm = [struct2array(stats), struct2array(stats_32), glcm_2(1,1), var(glcm_2(:)), sum(diag(glcm_2)), ];
+        dataset(i).glcm = [struct2array(stats), struct2array(stats_32)];
        
     end
     
     
-    %% 5. Distance to edge of skull
-    % The number of features: 2
-    img_adjust = imgori_sub - imgori_sub(1);
-    label_img = bwlabel( img_adjust, 4);
-    ImFilled = imfill(label_img, 'holes');
-    bw_edge = edge(ImFilled, 'Canny');
-    
-    for i = 1:length(dataset)
-        distance = distance_skull(dataset(i).WeightedCentroid, bw_edge, imgori_sub);
-        dataset(i).distances = [distance, dataset(i).WeightedCentroid(1), dataset(i).WeightedCentroid(2)];
-    end
-    
+     %% 5. Distance to edge of skull
+%     % The number of features: 2
+%     img_adjust = imgori - imgori(1);
+%     label_img = bwlabel( img_adjust, 4);
+%     ImFilled = imfill(label_img, 'holes');
+%     bw_edge = edge(ImFilled, 'Canny');
+%     
+%     for i = 1:length(dataset)
+%         distance = distance_skull(dataset(i).WeightedCentroid, bw_edge, imgori);
+%         dataset(i).distances = [distance, dataset(i).WeightedCentroid(1), dataset(i).WeightedCentroid(2)];
+%     end
+%     
     %% 6. Discrete Fourier Transform (DFT). **
     % The number of features: 4+32*4 =132
     % the maximal, minimal, median and mean value of the amplitude of DFT, as well as the frequency corresponding to the median value
@@ -307,17 +310,17 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
     
     %% 9. Radon Features **
     % The number of features: 5*4 =20   
-    for i = 1:length(dataset)
-        patch = dataset(i).recpatch32;
-        theta = 0:30:180;
-        [R,xp] = radon(patch,theta);
-        
-        % Using PCA
-        [coeff,score,latent] = pca(R);
-        radon_fs = [coeff(:,1)', coeff(:,2)', mean(R), var(R), skewness(R), kurtosis(R)];
-        dataset(i).radon = radon_fs;
-        
-    end
+%     for i = 1:length(dataset)
+%         patch = dataset(i).recpatch32;
+%         theta = 0:30:180;
+%         [R,xp] = radon(patch,theta);
+%         
+%         % Using PCA
+%         [coeff,score,latent] = pca(R);
+%         radon_fs = [coeff(:,1)', coeff(:,2)', mean(R), var(R), skewness(R), kurtosis(R)];
+%         dataset(i).radon = radon_fs;
+%         
+%     end
    
 
     
@@ -325,21 +328,21 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
     % 1. Calculate the distances pairwise
     % Extablish centroid matrix
     %centroids = zeros(length(dataset),2);
-    centroids = [];
-    for i  = 1:length(dataset)
-        centroids(end+1,:) = dataset(i). WeightedCentroid;
-    end
-    
-    for i = 1:length(dataset)
-        distances = pdist2(centroids, dataset(i).WeightedCentroid,'euclidean');
-        [~, I] = sort(distances);
-        %index_near = I(2:6);
-        index_rand = I(randsample(length(I),min(40,length(I))));
-        
-        %near = cell2mat(arrayfun(@(x) (dataset(index_near(x)).MeanIntensity-dataset(i).MeanIntensity)^2,1:5,'un',0));
-        rand = cell2mat(arrayfun(@(x) (dataset(index_rand(x)).MeanIntensity-dataset(i).MeanIntensity)^2,1:min(40,length(I)),'un',0));
-        dataset(i).saliency = [mean(rand), var(rand)];
-    end
+%     centroids = [];
+%     for i  = 1:length(dataset)
+%         centroids(end+1,:) = dataset(i). WeightedCentroid;
+%     end
+%     
+%     for i = 1:length(dataset)
+%         distances = pdist2(centroids, dataset(i).WeightedCentroid,'euclidean');
+%         [~, I] = sort(distances);
+%         %index_near = I(2:6);
+%         index_rand = I(randsample(length(I),min(40,length(I))));
+%         
+%         %near = cell2mat(arrayfun(@(x) (dataset(index_near(x)).MeanIntensity-dataset(i).MeanIntensity)^2,1:5,'un',0));
+%         rand = cell2mat(arrayfun(@(x) (dataset(index_rand(x)).MeanIntensity-dataset(i).MeanIntensity)^2,1:min(40,length(I)),'un',0));
+%         dataset(i).saliency = [mean(rand), var(rand)];
+%     end
 
     
     % 2. Extract 5 near the target patch and 10 random patches
@@ -356,20 +359,20 @@ function [dataset] = feature_extraction(dataset, imgori_sub)
     for i = 1: length(dataset)
         %dataset(i).features = [dataset(i).radon];
         dataset(i).features = [dataset(i).intensity_features, dataset(i).entropy, dataset(i).gabor, dataset(i).gabor2 ...
-dataset(i).glcm, dataset(i).distances, dataset(i).dft, dataset(i).wpenergy,dataset(i).contour, dataset(i).radon, dataset(i).saliency];
+dataset(i).glcm, dataset(i).dft, dataset(i).wpenergy,dataset(i).contour];
 
     end
 
     
 end
 
-function distance = distance_skull(center, bw_edge, imgori_sub)
+function distance = distance_skull(center, bw_edge, imgori)
     points = find(bw_edge==1);
     
     edge_points = [];
     for i = 1:length(points)
         index = points(i);
-        [coor_x, coor_y] = ind2sub(size(imgori_sub),index);
+        [coor_x, coor_y] = ind2sub(size(imgori),index);
         %{
         coor_y = mod(index, size_h);
         if coor_y == 0

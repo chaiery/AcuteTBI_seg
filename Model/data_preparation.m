@@ -29,8 +29,7 @@ PatientsData_TrauImg = PatientsData;
 
 PatientsData = [PatiensData_Protected, PatientsData_TrauImg];
 
-%% Extracted Features for Each Slice
-%% Build Positive Dataset and Negative Dataset for each patient
+%% Select random slices from patients
 for p = 1:length(PatientsData)
     p
     brains = PatientsData(p).brain_pos;
@@ -42,12 +41,22 @@ for p = 1:length(PatientsData)
         brains = brains(:,:,sel);
         %mask = mask(:,:,sel);
         annotations = annotations(:,:,:,sel);
+        ModelData(p).sel = sel;
     end
     
-    roi = brains;
-    [positive_dataset, negative_dataset, annotated_slices] = build_dataset(brains, roi, annotations);
-    PatientsData(p).PosData = positive_dataset;
-    PatientsData(p).NegData = negative_dataset;
-    PatientsData(p).annotated_slices = annotated_slices;
-   
+    ModelData(p).Pid = PatientsData(p).Pid;
+    ModelData(p).Datatype = PatientsData(p).Datatype;
+    ModelData(p).brains = brains;
+    ModelData(p).annots =annotations;
+end
+
+%% Extracted Features for Each Slice
+%% Build Positive Dataset and Negative Dataset for each patient
+for p = 1:length(ModelData)
+    p
+    [~, ~, annotated_slices] = build_dataset(ModelData(p).brains, ModelData(p).brains, ModelData(p).annots);
+    ModelFeatures(p).annotated_slices = annotated_slices;
+    ModelFeatures(p).Pid = ModelData(p).Pid;
+    ModelFeatures(p).Datatype = ModelData(p).Datatype;
+    ModelFeatures(p).sel  = ModelData(p).sel;
 end
