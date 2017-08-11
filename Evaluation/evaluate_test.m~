@@ -79,15 +79,7 @@ function [result] = evaluate_test(PatientsData,  test_index, feature_index, trai
                 end
             end
             
-            distances = test_norm*model_SVM.Beta + model_SVM.Bias;
-            probability = zeros(size(brain));
-            thre = min(abs(distances));
-            
-            for i = 1:length(struct_all)
-                probability(struct_all(i).PixelIdxList) = thre/abs(distances(i));
-            end
-            
-            result(record).probability_map = probability;
+           
             pred_list_pos = find(pred_img==1);
             pred_list_neg = find(pred_img==0);
             brain_region = find(brain>brain(1));

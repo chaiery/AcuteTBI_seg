@@ -7,9 +7,13 @@ function [dataset] = feature_extraction(dataset, imgori)
     imgori = pad_brain(imgori, 0.1);
     
     %% Total variation denoising
-    img_tv2=PDHG(double(imgori),.05,10^(-3));
-    img_tv2(img_tv2<5)=0;
-    imgori = img_tv2;
+%     img_tv2=PDHG(double(imgori),.05,10^(-3));
+%     img_tv2(img_tv2<5)=0;
+%     imgori = img_tv2;
+%     
+    %% Median
+    %Ismooth = imguidedfilter(imgori);
+    %imgori = Ismooth;
     
     %% Extract Rectangular region around superpixel
     for i = 1: length(dataset)
