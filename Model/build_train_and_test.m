@@ -1,9 +1,8 @@
-function [train_1_features, train_0_features] = build_train_and_test(dataset)
+function [train_1_features, train_0_features_edge, train_0_features_remain] = build_train_and_test(dataset)
     PositiveDataset = [];
-    NegativeDataset = [];
+    NegativeDataset_edge = [];
+    NegativeDataset_remain = [];
     
-    struct_1s = [];
-    struct_0s = [];
     for tid = 1:length(dataset)
         pid = dataset(tid).Pid;
        
@@ -11,31 +10,61 @@ function [train_1_features, train_0_features] = build_train_and_test(dataset)
         dice  = [];
         for slice_index = 1:length(annotated_slices)
             PositiveDataset = [PositiveDataset; annotated_slices(slice_index).struct_1];
-            NegativeDataset = [NegativeDataset; annotated_slices(slice_index).struct_0];
+            
+            negative_samples = annotated_slices(slice_index).struct_0;
+            [neg_edge, neg_remain] = find_points_close_to_edge(annotated_slices(slice_index).brain, negative_samples);
+            
+            NegativeDataset_edge = [NegativeDataset_edge; neg_edge];
+            NegativeDataset_remain = [NegativeDataset_remain; neg_remain];
         end
     end
     
-    num_features = length(NegativeDataset(1).features);
+    num_features = length(NegativeDataset_edge(1).features);
+    sel = [164, 168];
     
-    train_1_features = zeros(length(PositiveDataset),num_features);
-    train_0_features = zeros(length(NegativeDataset),num_features);
+    train_1_features = build_feature_matrix(PositiveDataset, num_features, sel);
+    train_0_features_edge = build_feature_matrix(NegativeDataset_edge, num_features, sel);
+    train_0_features_remain = build_feature_matrix(NegativeDataset_remain, num_features, sel);
+    
+end
 
-    for i = 1:length(PositiveDataset)
-       train_1_features(i,:) = PositiveDataset(i).features;
+
+function [neg_edge, neg_remain] = find_points_close_to_edge(brain, components)
+    brain_label = logical(brain);
+    brain_label = imfill(brain_label,'holes');
+    roi_temp = xor(brain, imerode(logical(brain_label ), strel('disk', 30))); 
+    pixellist = find(roi_temp==1);
+
+    %%
+    idx_1 = [];
+    idx_2 = [];
+    for i = 1:length(components)
+        pixels = components(i).PixelIdxList;
+        if ~isempty(intersect(pixels, pixellist))
+            idx_1 = [idx_1, i];
+        else
+            idx_2 = [idx_2, i];
+        end
+    end
+
+    %%
+    neg_edge  = components(idx_1);
+    neg_remain = components(idx_2);
+
+end
+
+
+function [features] = build_feature_matrix(data, num_features, sel)
+    
+    features = zeros(length(data),num_features);
+
+    for i = 1:length(data)
+       features(i,:) = data(i).features;
     end
     
-    for i = 1:length(NegativeDataset)
-       train_0_features(i,:) = NegativeDataset(i).features;
-    end
+    features(:,sel) = [];
     
-   train_1_features(:,[164, 168]) = [];
-   train_0_features(:,[164, 168]) = [];
-   %train_1_features(:,[91:152, 164, 168]) = [];
-   %train_0_features(:,[91:152, 164, 168]) = [];
-    
-    [a,~]= find(isnan(train_1_features)==1);
-    train_1_features(a,:) = [];
-    
-    [a,~]= find(isnan(train_0_features)==1);
-    train_0_features(a,:) = [];
+    [a,~]= find(isnan(features)==1);
+    features(a,:) = [];
+
 end

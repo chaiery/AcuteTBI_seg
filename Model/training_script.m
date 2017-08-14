@@ -11,12 +11,13 @@ train_index =pid_index(1:35);
 test_index = pid_index(36:44);
 
 %%
-[train_1_features, train_0_features] = build_train_and_test(PatientsData(train_index));
+[train_1_features, train_0_features_edge, train_0_features_remain] = build_train_and_test(PatientsData(train_index));
 
 %%
 train_1 = train_1_features(randsample(length(train_1_features), 1000), feature_index);
-train_0 = train_0_features(randsample(length(train_0_features), 20000), feature_index);
-train_features = [train_1; train_0];
+train_0_edge = train_0_features(randsample(length(train_0_features), 20000), feature_index);
+train_0_remain = train_0_features(randsample(length(train_0_features), 20000), feature_index);
+train_features = [train_1; train_0_edge, train_0_remain];
 
 train_mean = mean(train_features);
 train_std = std(train_features,0,1);
@@ -29,8 +30,9 @@ train_norm = feature_normalization(train_features, train_mean, train_std);
 model_SVM = fitcsvm(train_norm, train_class, 'KernelFunction', 'linear','Cost', [0 1;10 0]);
 
 %%
-[test_1_features, test_0_features] = build_train_and_test(PatientsData(test_index));
+[test_1_features, test_0_features_edge, test_0_features_remain] = build_train_and_test(PatientsData(test_index));
 test_1 = test_1_features(:,feature_index);
+test_0_features = [test_0_features_edge; test_0_features_remain];
 test_0 = test_0_features(:,feature_index);
 test_features = [test_1; test_0];
 test_class = [repelem(1,length(test_1)), repelem(0,length(test_0))]';

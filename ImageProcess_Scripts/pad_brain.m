@@ -13,7 +13,7 @@ center = [stats.BoundingBox(1) + stats.BoundingBox(3)/2,...
 sc_ftr = 1.2;
 
 
-method = 0;
+method = 1;
 
 switch method
     case 0

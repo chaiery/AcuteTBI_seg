@@ -1,4 +1,4 @@
-function [img_out, gmm_label, isdetected] = detectHematoma(img,option, num_label)
+function [img_out, isdetected] = detectHematoma(img,option)
 % Using codes from detectHe.m
 %option is for EM versus VB
 
@@ -97,26 +97,24 @@ x2 = [double(img(:)) double(img2lcs(:)) double(img_tv2(:))];
 % x2 = double(img_tv2(:));
 
 label = [];maxiter = 3;id=0;
-
-%num_label = 4;
-while length(unique(label))~=num_label && id<maxiter 
+while length(unique(label))~=4 && id<maxiter 
     if option == 1
-        label = emgm(x2',num_label);
+        label = emgm(x2',4);
     else
-        label = vbgm(x2',num_label);
+        label = vbgm(x2',4);
     end
     unique(label)
     k2 = reshape(label,size(img2hist,1),size(img2hist,2));
     id = id+1;
 end
-if length(unique(label))~=num_label k2 = reshape(label,size(img2hist,1),size(img2hist,2));
+if length(unique(label))~=4
     fprintf('Changing Features..')
     x2 = [double(img2lcs(:)) double(img_tv2(:))];id=0;
-    while length(unique(label))~=num_label && id<maxiter 
+    while length(unique(label))~=4 && id<maxiter 
         if option == 1
-            label = emgm(x2',num_label);
+            label = emgm(x2',4);
         else
-            label = vbgm(x2',num_label);
+            label = vbgm(x2',4);
         end
         unique(label)
         k2 = reshape(label,size(img2hist,1),size(img2hist,2));
@@ -124,8 +122,8 @@ if length(unique(label))~=num_label k2 = reshape(label,size(img2hist,1),size(img
     end
 end
 
-%figure,imshow(mat2gray(k2))
-gmm_label = k2;
+% figure,imshow(mat2gray(k2))
+
 %Hematoma
 % -------------------------------------------------------------------------
 %% Separate component masks
@@ -223,8 +221,7 @@ if areas(hIdx)<(0.4)*BrArea
     hImg(:,:,3) = hImg(:,:,1).*(~ffimg);
     % figure,imshow(uint8(hImg));
     
-    %img_out = uint8(hImg);
-    img_out = ffimg;
+    img_out = uint8(hImg);
     isdetected = 1; %strcat('Hematoma Image saved ', filename);
 %     imshow(uint8(hImg));
 else

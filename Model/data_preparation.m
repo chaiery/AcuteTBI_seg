@@ -35,28 +35,94 @@ for p = 1:length(PatientsData)
     brains = PatientsData(p).brain_pos;
     %mask = PatientsData(p).mask;
     annotations = PatientsData(p).annots;
+    idx_list = [];
+    for idx=1:size(brains,3)
+        index_list = find_annotated_pixelList(annotations(:,:,:,idx), brains(:,:,idx));
+        if length(index_list)>100
+            idx_list = [idx_list idx];
+        end
+    end
     
-    if size(brains, 3)>4
+    if length(idx_list)>4
+        brains = brains(:,:,idx_list);
+        annotations = annotations(:,:,:,idx_list);
         sel =randsample(size(brains, 3),4);
         brains = brains(:,:,sel);
-        %mask = mask(:,:,sel);
         annotations = annotations(:,:,:,sel);
-        ModelData(p).sel = sel;
+        ModelData(p).sel = idx_list(sel);
+    elseif isempty(idx_list)
+        brains = brains(:,:,idx_list);
+        annotations = annotations(:,:,:,idx_list);
+        ModelData(p).sel = idx_list;
+    else
+        brains = [];
+        annotations = [];
+        ModelData(p).sel = [];
+    end
+    
+    if ~isempty(brains)
+        [rota_brains, rotate_angle] =  rotate_method(brains);
+        rota_annots = imrotate(annotations,rotate_angle,'nearest','crop');
+    else
+        rota_brains = [];
+        rota_annots = [];
     end
     
     ModelData(p).Pid = PatientsData(p).Pid;
     ModelData(p).Datatype = PatientsData(p).Datatype;
     ModelData(p).brains = brains;
-    ModelData(p).annots =annotations;
+    ModelData(p).annots = annotations;
+    ModelData(p).rota_brains =  rota_brains;
+    ModelData(p).rota_annots = rota_annots;
 end
+
+%%
+idx_list = [];
+for i = 1:length(ModelData)
+    if isempty(ModelData(i).brains)
+        idx_list = [idx_list, i];
+    end
+end
+
+ModelData(idx_list) = [];
 
 %% Extracted Features for Each Slice
 %% Build Positive Dataset and Negative Dataset for each patient
-for p = 1:length(ModelData)
+%for p = 1:length(ModelData)
+for p = 1
     p
-    [~, ~, annotated_slices] = build_dataset(ModelData(p).brains, ModelData(p).brains, ModelData(p).annots);
+    rota_brains =  ModelData(p).rota_brains;
+    rota_annots =  ModelData(p).rota_annots;
+    
+    [~, ~, annotated_slices] = build_dataset(rota_brains, rota_brains, rota_annots);
+    
+    idx_list = [];
+    for i = 1:length(annotated_slices)
+        if isempty(annotated_slices(i).struct_1)
+            idx_list = [idx_list, i];
+        end
+    end
+    
+    sel = ModelData(p).sel;
+    annotated_slices(idx_list) = [];
+    sel(idx_list) = [];
+    
     ModelFeatures(p).annotated_slices = annotated_slices;
     ModelFeatures(p).Pid = ModelData(p).Pid;
     ModelFeatures(p).Datatype = ModelData(p).Datatype;
-    ModelFeatures(p).sel  = ModelData(p).sel;
+    ModelFeatures(p).sel  = sel;
 end
+
+
+%% GMM output
+%for i = 1:length(ModelData)
+GMM_output = [];
+%for i = 1:length(ModelData)
+for i = 31:32
+    BrainImgs = ModelData(i).rota_brains;
+    GMM_output(i).brains = BrainImgs;
+    GMM_output(i).output = GMM_detection(BrainImgs, false);
+    GMM_output(i).annotation = ModelData(i).rota_annots;
+end
+
+GMM_output = evaluate_GMM_output(GMM_output);

@@ -4,7 +4,9 @@ function [dataset] = feature_extraction(dataset, imgori)
     
     mask = find(imgori==imgori(1));
     imgori(mask) = 0;
-    imgori = pad_brain(imgori, 0.1);
+     
+    imgori = pad_brain(imgori, 0.01);
+    imgori = imguidedfilter(imgori);
     
     %% Total variation denoising
 %     img_tv2=PDHG(double(imgori),.05,10^(-3));
@@ -88,7 +90,7 @@ function [dataset] = feature_extraction(dataset, imgori)
    %% 3. Gabor filter ** 
     % The number of features: 4*6*6 = 144
     % Build Gabor filters
-    img_gabor = pad_brain(imgori,0.01);
+    %img_gabor = pad_brain(imgori,0.01);
     numRows = 100; % Need to be tuned 256?
     numCols = 100;  % Need to be tuned 256?
     wavelengthMin = 4/sqrt(2);
@@ -100,7 +102,7 @@ function [dataset] = feature_extraction(dataset, imgori)
     % These combinations of frequency and orientation are taken from [Jain,1991] 
 
     g = gabor(wavelength,orientation);
-    gabormag = imgaborfilt(img_gabor,g);
+    gabormag = imgaborfilt(imgori,g);
     % Filter 
     for i = 1: length(dataset)
        
@@ -131,22 +133,6 @@ function [dataset] = feature_extraction(dataset, imgori)
     %% Another Gabor
     % The number of features: 4*6*6 = 144
     % Build Gabor filters
-    numRows = 256; % Need to be tuned
-    numCols = 256;  % Need to be tuned
-    wavelengthMin = 4 / sqrt(2);
-    wavelengthMax = hypot(numRows, numCols);
-    n = floor(log2(wavelengthMax / wavelengthMin));
-    wavelength = 2 .^ (0 : (n - 2)) * wavelengthMin;
-    deltaTheta = 22.5;
-    orientation = 0 : deltaTheta : (180 - deltaTheta);
-    % These combinations of frequency and orientation are taken from [Jain,1991] 
-
-    % Create gabor filter image
-    gabor_filt = gabor(wavelength,orientation);
-    gabormag = imgaborfilt(imgori,gabor_filt);
-    
-    % Mean filtering
-	mean_img = zeros(size(gabormag));
     for i = 1 : size(gabormag, 3)
          output = medfilt2(gabormag(:, :, i));
          output(mask) = 0;
