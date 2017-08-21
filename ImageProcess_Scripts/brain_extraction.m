@@ -17,10 +17,11 @@ function [brain, startI, endI] = brain_extraction(DcmDir, DcmList)
 %     
 %     DcmList = ImgNew;
     
-    [normalizedImg,bone,~,~] = normalization(DcmDir, DcmList, 1, length(DcmList));
+    [adjustImg, normalizedImg,bone,~,~] = normalization(DcmDir, DcmList, 1, length(DcmList));
    
     brain = zeros([512, 512, length(DcmList)]);
     
+    %%
     for k = 10 : length(DcmList)-3
         if sum(sum(bone(:,:,k))) ~= 0
             center_row = int16(sum(bone(:,:,k),2)'*(1:512)'/sum(sum(bone(:,:,k))));
@@ -62,8 +63,15 @@ function [brain, startI, endI] = brain_extraction(DcmDir, DcmList)
             end
         end
     end
-    
+    %%
     brain = uint8(brain);
+    
+    for k = 1:size(brain,3)
+        mask = brain(:,:,k);
+        out = adjustImg(:,:,k);
+        out(mask==0) = 0;
+        brain(:,:,k) = out;
+    end
     
     startI = 0;
     endI = length(DcmList);

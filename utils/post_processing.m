@@ -1,6 +1,76 @@
-function out=post_processing(brain, pred)
+function out=post_processing(brain, pred)    
+    if ~isempty(brain)
+        out = post_processing_1(brain, pred);
+        if length(find(out==1))>length(find(pred==1))*0.2
+            pred = out;
+        end
+        %figure;imshow(pred)
+        pred = post_processing_2(brain, pred);
+        %figure;imshow(pred)
+        
+        s = regionprops(logical(pred),'Area','PixelIdxList');
+
+        pred_new = zeros(size(pred));
+        for j = 1 : numel(s)
+            mean_intensity = mean(brain(s(j).PixelIdxList));
+            if s(j).Area>80 && mean_intensity>50 && mean_intensity<200
+                pred_new(s(j).PixelIdxList)=1;
+            end
+        end
+        out = pred_new;
+    end
+end
+
+
+function out=post_processing_2(brain, pred)
 
 brain(brain==brain(1)) = 0;
+%% Create Ventricle Templates
+rp = imfill(double(brain),'holes');
+rp(rp>0) = max(max(rp));
+
+[rpb,~] = bwlabel(rp);
+rpbox = regionprops(rpb,'BoundingBox','Centroid');
+
+
+% rectangle('Position',rpbox(1).BoundingBox,'EdgeColor','r');
+xl = rpbox(1).BoundingBox(1,1);
+yl = rpbox(1).BoundingBox(1,2);
+w = rpbox(1).BoundingBox(1,3);
+h = rpbox(1).BoundingBox(1,4);
+
+% centx = rpbox(1).Centroid(1,1);
+% centy = rpbox(1).Centroid(1,2);
+
+% cx = centx;
+% cy = centy;
+
+cx = xl+w/2;
+cy = yl+h/2; %centroid position
+
+% xl2 = cx-w/12;
+% yl2 = cy-h/12;
+% w2 = w/6;
+% h2 = h/2+h/12;
+xl2 = cx-w/6;
+yl2 = cy - h/12;
+w2 = w/3;
+h2 = h/2+h/8;
+%box2 = [xl2 yl2 w2 h2]; %ventricle box region
+
+mask = ones(size(brain));
+mask(floor(yl2):ceil(yl2+h2), floor(xl2):ceil(xl2+w2)) = 0;
+
+out = mask.*pred;
+
+end
+
+
+function out=post_processing_1(brain, pred)
+
+brain(brain==brain(1)) = 0;
+
+%% Padding
 brain = pad_brain(brain, 0.1);
 %%
 % conimg = brain;
@@ -16,17 +86,31 @@ BW= edge(ismooth/(max(ismooth(:))+50),'Canny');
 BW2 = bwmorph(BW, 'bridge');
 BW3 = imfill(BW2,'holes');
 
-s = regionprops(BW3,'Area','PixelIdxList');
-
-mask = zeros(size(brain));
-for i = 1 : numel(s)
-    if s(i).Area>100 
-        mask(s(i).PixelIdxList)=1;
+labels = regionprops(BW3,'Area','PixelIdxList');
+BW4 = zeros(size(brain));
+for idx = 1:length(labels)
+    if labels(idx).Area>100
+        test = zeros(size(brain));
+        test(labels(idx).PixelIdxList)=1;
+        se = strel('disk',5);
+        rem= imerode(test,se);
+        if length(find(rem==1))>10
+            BW4(labels(idx).PixelIdxList) = 1;
+        end
     end
 end
+        
+% s = regionprops(BW3,'Area','PixelIdxList');
+% 
+% mask = zeros(size(brain));
+% for i = 1 : numel(s)
+%     if s(i).Area>100 
+%         mask(s(i).PixelIdxList)=1;
+%     end
+% end
 
-se = strel('disk',2);
-mask = imdilate(mask,se);
+se = strel('disk',1);
+mask = imdilate(BW4,se);
 %%
 brain_label = logical(brain);
 brain_label = imfill(brain_label,'holes');
@@ -47,6 +131,8 @@ mask = mask.*roi_2;
 %%
 out = mask.*pred;
 %figure;imshow(out)
+
+out = imfill(out);
 
 end
 

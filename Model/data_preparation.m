@@ -1,8 +1,9 @@
 %% Data Preparation
 
 %% Extract brain imags from each patient
-Patients_Protected = [38, 43, 76, 80, 88, 94, 100, 109, 113, 122, 125, 183, 284, 332, 380];
-Patients_TrauImg = [147, 149, 155, 176, 177, 180, 190, 209, 212, 222,256, 270, 271, 273, 283, 289, 307, 324, 366, 369, 378, 380, 389, 390, 392];
+Patients_Protected = [43, 76, 80, 81, 88, 90, 94, 113, 122, 125, 183, 241, 244, 247, 250, 265, 269, 278, ...
+    280, 284, 297, 308, 320, 332, 380];
+Patients_TrauImg = [147, 149, 155, 176, 177, 180, 190, 209, 212, 222,256, 264, 270, 271, 273, 282, 283, 289,  324, 366, 378, 380, 389, 390];
 
 PatientsData = [];
 Patients = Patients_Protected;
@@ -117,8 +118,7 @@ end
 %% GMM output
 %for i = 1:length(ModelData)
 GMM_output = [];
-%for i = 1:length(ModelData)
-for i = 31:32
+for i = 1:length(ModelData)
     BrainImgs = ModelData(i).rota_brains;
     GMM_output(i).brains = BrainImgs;
     GMM_output(i).output = GMM_detection(BrainImgs, false);
