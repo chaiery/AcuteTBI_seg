@@ -20,7 +20,8 @@ function [train_1_features, train_0_features_edge, train_0_features_remain] = bu
     end
     
     num_features = length(NegativeDataset_edge(1).features);
-    sel = [164, 168];
+    sel = [];
+    %sel = [164, 168];
     
     train_1_features = build_feature_matrix(PositiveDataset, num_features, sel);
     train_0_features_edge = build_feature_matrix(NegativeDataset_edge, num_features, sel);
@@ -32,7 +33,7 @@ end
 function [neg_edge, neg_remain] = find_points_close_to_edge(brain, components)
     brain_label = logical(brain);
     brain_label = imfill(brain_label,'holes');
-    roi_temp = xor(brain, imerode(logical(brain_label ), strel('disk', 30))); 
+    roi_temp = xor(brain, imerode(logical(brain_label ), strel('disk', 15))); 
     pixellist = find(roi_temp==1);
 
     %%
@@ -66,5 +67,7 @@ function [features] = build_feature_matrix(data, num_features, sel)
     
     [a,~]= find(isnan(features)==1);
     features(a,:) = [];
-
+    
+    [a,~]= find(isinf(features)==1);
+    features(a,:) = [];
 end

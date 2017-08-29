@@ -1,7 +1,9 @@
-function [result] = evaluate_test(PatientsData,  test_index, feature_index, train_mean, train_std, model_SVM)
+function [result, dice_pids] = evaluate_test(PatientsData,  test_index, feature_index, train_mean, train_std, model_SVM)
     result = [];
     record = 0;
-    dice_all = [];
+    dice_belows = [];
+    dice_ups = [];
+    dice_pids = [];
     for testi = 1:length(test_index)
         
         tid = test_index(testi);
@@ -10,13 +12,14 @@ function [result] = evaluate_test(PatientsData,  test_index, feature_index, trai
         annotated_slices = PatientsData(tid).annotated_slices;
         dice  = [];
         for slice_index = 1:length(annotated_slices)
+            struct_0 = annotated_slices(slice_index).struct_0;
+            if ~isempty(struct_0)
             record = record+1;
             annotated_img = annotated_slices(slice_index).img_annot;
             brain = annotated_slices(slice_index).brain;
             struct_1 = annotated_slices(slice_index).struct_1;
-            struct_0 = annotated_slices(slice_index).struct_0;
-           %%
-            if length(struct_0)>0
+          %%
+            
             num_features = length(struct_0(1).features);
             test_1_features = zeros(length(struct_1),num_features);
             test_0_features = zeros(length(struct_0),num_features);
@@ -29,16 +32,9 @@ function [result] = evaluate_test(PatientsData,  test_index, feature_index, trai
                test_0_features(i,:) = struct_0(i).features;
             end
             
-             %test_1_features(:,[91:152, 164, 168]) = [];
-             %test_0_features(:,[91:152, 164, 168]) = [];
-            test_1_features(:,[164,168]) = [];
-            test_0_features(:,[164,168]) = [];
-            
-            %a1 = length(struct_1);
             [a,~]= find(isnan(test_1_features)==1);
             test_1_features(a,:) = [];
             struct_1(a) = [];
-            %a2 = length(struct_1);
           
     
             [a,~]= find(isnan(test_0_features)==1);
@@ -53,20 +49,12 @@ function [result] = evaluate_test(PatientsData,  test_index, feature_index, trai
             test = [test_1; test_0];
             test_class = [repelem(1,size_1(1)), repelem(0,size_0(1))]';
             test_norm = feature_normalization(test, train_mean, train_std);
-            %test_norm(:,[2,4]) = [];
             test_pred_y = predict(model_SVM,test_norm);
          %%
             TP = sum(test_class==test_pred_y & test_class==1);
             TN = sum(test_class==test_pred_y & test_class==0);
 
-            test_se =  TP/sum(test_class==1);
-            test_sp = TN/sum(test_class==0);
-            test_acc = (TP+TN)/length(test_class);
-           
-            result(record).test_se_sp = test_se;
-            result(record).test_sp_sp = test_sp;
-            result(record).test_acc_sp = test_acc;
-            %%
+         %%
             struct_all = [struct_1; struct_0];
             
             
@@ -79,17 +67,14 @@ function [result] = evaluate_test(PatientsData,  test_index, feature_index, trai
                 end
             end
             
-            distances = test_norm*model_SVM.Beta + model_SVM.Bias;
-            probability = zeros(size(brain));
-            thre = min(abs(distances));
-            
-            for i = 1:length(struct_all)
-                probability(struct_all(i).PixelIdxList) = thre/abs(distances(i));
-            end
-            
-            result(record).probability_map = probability;
+            pred_img =  post_processing(brain, pred_img);
+           
             pred_list_pos = find(pred_img==1);
             pred_list_neg = find(pred_img==0);
+            
+            pred_img_overlap = brain;
+            pred_img_overlap(pred_list_pos) = 255;
+            
             brain_region = find(brain>brain(1));
             pred_list_neg = intersect(brain_region, pred_list_neg);
             
@@ -105,32 +90,29 @@ function [result] = evaluate_test(PatientsData,  test_index, feature_index, trai
             test_sp = TN/(TN+FP);
             test_acc = (TP+TN)/(TP+TN+FP+FN);
             test_dice = 2*TP/(length(pred_list_pos)+length(annotated_pos));
+            dice_below = length(pred_list_pos)+length(annotated_pos);
+            dice_up = 2*TP;
             
-%             TP = sum(test_class==test_pred_y & test_class==1);
-%             TN = sum(test_class==test_pred_y & test_class==0);
-%             Ps = sum(test_class) + sum(test_pred_y);
-%             test_se =  TP/sum(test_class==1);
-%             test_sp = TN/sum(test_class==0);
-%             test_acc = (TP+TN)/length(test_class);
-%             test_dice = 2*TP/Ps;
-
             result(record).test_se = test_se;
             result(record).test_sp = test_sp;
             result(record).test_acc = test_acc;
             result(record).dice = test_dice;
             result(record).num_pos = length(annotated_pos);
             result(record).id  = strcat(num2str(pid), '-', num2str(slice_index));
-            result(record).pred_img = pred_img;
+            result(record).pred_img = pred_img_overlap;
             result(record).brain = brain;
             result(record).annotated_img = annotated_img;
             
-            dice = [dice, test_dice];
-            dice_all = [dice_all, test_dice];
+            dice_belows = [dice_belows, dice_below];
+            dice_ups = [dice_ups, dice_up];
+            
             end
         end
-        mean(dice)
+
+        dice_pids =  [dice_pids, sum(dice_ups)/sum(dice_belows)];
+        dice_ups = [];
+        dice_belows = [];
     end
-    mean(dice_all)
 end
             
 

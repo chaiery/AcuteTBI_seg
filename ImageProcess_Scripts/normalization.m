@@ -8,13 +8,15 @@ function [adjustImgs, normalizedImg,bone,ind, EdgeBone] = normalization(fullImag
     adjustImgs = [];
     ind=[];
     fnamelis = [];
-   
+   %%
     for i= 1 : length(imgList)
         fname = imgList(i).name;
         inf= dicominfo([fullImageDirRoot, fname]);
         InstanceIdx = inf.InstanceNumber;
         fnamelis(InstanceIdx).fname = fname;
     end
+    idx = arrayfun(@(x) isempty(fnamelis(x).fname), 1:length(fnamelis));
+    fnamelis(idx) = [];
     %%
     for i= startS : endS
         % Read input file information

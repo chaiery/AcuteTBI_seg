@@ -1,4 +1,29 @@
-function out=post_processing(brain, pred)    
+function out = post_processing(brain, pred)
+    if ~isempty(brain)
+        % fill holes
+        %out = post_processing_2(brain, pred);
+        out = pred;
+        out = bwmorph(out, 'bridge');
+        rp = imfill(double(out),'holes');
+        if length(find(rp==1))>1.5*length(find(pred==1))
+            rp = pred;
+        end
+        s = regionprops(logical(rp),'Area','PixelIdxList');
+
+        pred_new = zeros(size(pred));
+        for j = 1 : numel(s)
+            mean_intensity = mean(brain(s(j).PixelIdxList));
+            if s(j).Area>50 && mean_intensity<180 && mean_intensity>30
+                pred_new(s(j).PixelIdxList)=1;
+            end
+        end
+        out = pred_new;
+        
+    end
+end
+
+
+function out=post_processing_previous(brain, pred)    
     if ~isempty(brain)
         out = post_processing_1(brain, pred);
         if length(find(out==1))>length(find(pred==1))*0.2
@@ -24,7 +49,6 @@ end
 
 function out=post_processing_2(brain, pred)
 
-brain(brain==brain(1)) = 0;
 %% Create Ventricle Templates
 rp = imfill(double(brain),'holes');
 rp(rp>0) = max(max(rp));
@@ -46,21 +70,22 @@ h = rpbox(1).BoundingBox(1,4);
 % cy = centy;
 
 cx = xl+w/2;
-cy = yl+h/2; %centroid position
+cy = yl+h/8*7; %centroid position
 
 % xl2 = cx-w/12;
 % yl2 = cy-h/12;
 % w2 = w/6;
 % h2 = h/2+h/12;
-xl2 = cx-w/6;
+xl2 = cx-w/12;
 yl2 = cy - h/12;
-w2 = w/3;
-h2 = h/2+h/8;
+w2 = w/6;
+h2 = h/6 + h/12;
 %box2 = [xl2 yl2 w2 h2]; %ventricle box region
 
 mask = ones(size(brain));
 mask(floor(yl2):ceil(yl2+h2), floor(xl2):ceil(xl2+w2)) = 0;
 
+%%
 out = mask.*pred;
 
 end

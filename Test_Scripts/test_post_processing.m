@@ -1,9 +1,15 @@
-for pid = 1:80
+compare = [];
+for pid = 1:153
     pred = result(pid).pred_img;
+    compare(pid).pred_before= pred;
     annot = result(pid).annotated_img;
     brain =result(pid).brain;
     if ~isempty(brain)
-        pred = post_processing(brain, pred);
+        out = post_processing(brain, pred);
+        if length(find(out==1))>length(find(pred==1))*0.2
+            pred = out;
+        end
+       
         
         pred_list_pos = find(pred==1);
 
@@ -27,18 +33,16 @@ for pid = 1:80
         %result(pid).post_dice = test_dice;
         
         compare(pid).dice = result(pid).dice;
-        compare(pid).post_dice_new = test_dice;
+        compare(pid).post_dice = test_dice;
         compare(pid).pred = pred;
     end
 end
-%%
-i = 17;
-brain =result(i).brain;
-figure;imshow(brain)
+
+
 
 %%
 %compare = [];
-for pid = 1:80
+for pid = 1:153
     pred = result(pid).pred_img;
     annot = result(pid).annotated_img;
     brain =result(pid).brain;
@@ -81,29 +85,25 @@ for pid = 1:80
         %result(pid).post_dice = test_dice;
         
         compare(pid).dice = result(pid).dice;
-        compare(pid).post_dice_new = test_dice;
+        compare(pid).post_dice = test_dice;
         compare(pid).pred = pred;
     end
 end
 
 %%
 dice_list = [];
-for i = 1:length(compare)
-    %if result(i).num_pos>500
-        dice_list = [dice_list, compare(i).post_dice_new];
-    %end
+for i = 1:length(result)
+    dice_list = [dice_list, compare(i).dice];
 end
-
+mean(dice_list)
 %%
 dice_list = [];
 for i = 1:length(result)
-    if result(i).num_pos>500
-        dice_list = [dice_list, compare(i).post_dice_];
-    end
+    dice_list = [dice_list, compare(i).post_dice];
 end
-
+mean(dice_list)
 %%
-for i = 11
+for i = 52
     brain = result(i).brain;
     pred_ori = result(i).pred_img_overlap;
     pred = compare(i).pred;

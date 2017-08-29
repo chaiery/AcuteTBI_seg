@@ -8,8 +8,8 @@ if size(stats,1) == 0
     return; 
 end
 
-center = [stats.BoundingBox(1) + stats.BoundingBox(3)/2,...
-          stats.BoundingBox(2) + stats.BoundingBox(4)/2];
+center = [stats(1).BoundingBox(1) + stats(1).BoundingBox(3)/2,...
+          stats(1).BoundingBox(2) + stats(1).BoundingBox(4)/2];
 sc_ftr = 1.2;
 
 

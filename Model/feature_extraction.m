@@ -4,7 +4,15 @@ function [dataset] = feature_extraction(dataset, imgori)
     
     mask = find(imgori==imgori(1));
     imgori(mask) = 0;
-     
+    
+    rp = imfill(double(imgori),'holes');
+    rp(rp>0) = max(max(rp));
+
+    [rpb,~] = bwlabel(rp);
+    rpbox = regionprops(rpb,'Centroid');
+    cent_x = rpbox(1).Centroid(1,1);
+    cent_y = rpbox(1).Centroid(1,2);
+    
     imgori = pad_brain(imgori, 0.01);
     imgori = imguidedfilter(imgori);
     
@@ -16,6 +24,7 @@ function [dataset] = feature_extraction(dataset, imgori)
     %% Median
     %Ismooth = imguidedfilter(imgori);
     %imgori = Ismooth;
+
     
     %% Extract Rectangular region around superpixel
     for i = 1: length(dataset)
@@ -66,8 +75,21 @@ function [dataset] = feature_extraction(dataset, imgori)
         dataset(i).y_range_32 = y_range;
         dataset(i).x_range_32 = x_range;
     end
-      
+    
+    
+    %% Gradient 
+    [Gmag, Gdir] = imgradient(imgori);
 
+    for i = 1:length(dataset)
+        f1 = [mean(Gmag(dataset(i).PixelIdxList)), var(Gmag(dataset(i).PixelIdxList)), mean(Gdir(dataset(i).PixelIdxList)), var(Gdir(dataset(i).PixelIdxList))];
+        cent_sp = dataset(i).WeightedCentroid;
+        d1 = cent_sp(1,1) - cent_x;
+        d2 = cent_sp(1,2) - cent_y;
+        distance = (d1^2+d2^2)^0.5;
+        angle = d1/(d2+0.01);
+        direction = d1/abs(d1);
+        dataset(i).gradient= [f1,distance,angle,direction];
+    end
     %% 1. Intensity **
     % Median of pixels' intensities
     % The number of features: 4
@@ -96,7 +118,7 @@ function [dataset] = feature_extraction(dataset, imgori)
     wavelengthMin = 4/sqrt(2);
     wavelengthMax = hypot(numRows,numCols);
     n = floor(log2(wavelengthMax/wavelengthMin));
-    wavelength = 2.^(0:0.5:(n-2)) * wavelengthMin;
+    wavelength = 2.^(0:(n-2)) * wavelengthMin;
     deltaTheta = 30;
     orientation = 0:deltaTheta:(180-deltaTheta);
     % These combinations of frequency and orientation are taken from [Jain,1991] 
@@ -185,16 +207,15 @@ function [dataset] = feature_extraction(dataset, imgori)
     % The number of features: 4+3=7
     for i = 1:length(dataset)
         rec = dataset(i).recpatch;
-        glcm = graycomatrix(rec,'NumLevels',16);
+        glcm = graycomatrix(rec,'NumLevels',8, 'GrayLimits', []);
         stats = graycoprops(glcm);
         glcm_2 = graycomatrix(rec)/length(rec(:));
         
         rec_32 = dataset(i).recpatch32;
-        glcm_32 = graycomatrix(rec_32,'NumLevels',16);
+        glcm_32 = graycomatrix(rec_32,'NumLevels',8,'GrayLimits', []);
         stats_32 = graycoprops(glcm_32);
         
         dataset(i).glcm = [struct2array(stats), struct2array(stats_32)];
-       
     end
     
     
@@ -348,7 +369,7 @@ function [dataset] = feature_extraction(dataset, imgori)
     %new_dataset = [];
     for i = 1: length(dataset)
         %dataset(i).features = [dataset(i).radon];
-        dataset(i).features = [dataset(i).intensity_features, dataset(i).entropy, dataset(i).gabor, dataset(i).gabor2 ...
+        dataset(i).features = [dataset(i).gradient, dataset(i).intensity_features, dataset(i).entropy, dataset(i).gabor, dataset(i).gabor2 ...
 dataset(i).glcm, dataset(i).dft, dataset(i).wpenergy,dataset(i).contour];
 
     end
