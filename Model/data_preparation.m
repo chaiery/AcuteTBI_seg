@@ -30,54 +30,6 @@ PatientsData_TrauImg = PatientsData;
 
 PatientsData = [PatiensData_Protected, PatientsData_TrauImg];
 
-%% Select random slices from patients
-for p = 1:length(PatientsData)
-    p
-    brains = PatientsData(p).brain_pos;
-    %mask = PatientsData(p).mask;
-    annotations = PatientsData(p).annots;
-    idx_list = [];
-    for idx=1:size(brains,3)
-        index_list = find_annotated_pixelList(annotations(:,:,:,idx), brains(:,:,idx));
-        if length(index_list)>100
-            idx_list = [idx_list idx];
-        end
-    end
-    
-    if length(idx_list)>4
-        brains = brains(:,:,idx_list);
-        annotations = annotations(:,:,:,idx_list);
-        sel =randsample(size(brains, 3),4);
-        brains = brains(:,:,sel);
-        annotations = annotations(:,:,:,sel);
-        ModelData(p).sel = idx_list(sel);
-    elseif isempty(idx_list)
-        brains = brains(:,:,idx_list);
-        annotations = annotations(:,:,:,idx_list);
-        ModelData(p).sel = idx_list;
-    else
-        brains = [];
-        annotations = [];
-        ModelData(p).sel = [];
-    end
-    
-    
-%     if ~isempty(brains)
-%         [rota_brains, rotate_angle] =  rotate_method(brains);
-%         rota_annots = imrotate(annotations,rotate_angle,'nearest','crop');
-%     else
-%         rota_brains = [];
-%         rota_annots = [];
-%     end
-    
-    ModelData(p).Pid = PatientsData(p).Pid;
-    ModelData(p).Datatype = PatientsData(p).Datatype;
-    ModelData(p).brains = brains;
-    ModelData(p).annots = annotations;
-    ModelData(p).rota_brains =  rota_brains;
-    ModelData(p).rota_annots = rota_annots;
-end
-
 %%
 idx_list = [];
 for i = 1:length(ModelData)
@@ -88,48 +40,32 @@ end
 
 ModelData(idx_list) = [];
 
-%% Extracted Features for Each Slice
-%% Build Positive Dataset and Negative Dataset for each patient
-for p = 1:length(ModelData)
-%for p = 1
-    p
-    rota_brains =  ModelData(p).rota_brains;
-    rota_annots =  ModelData(p).rota_annots;
-    
-    [~, ~, annotated_slices] = build_dataset(rota_brains, rota_brains, rota_annots);
-    
-%     idx_list = [];
-%     for i = 1:length(annotated_slices)
-%         if isempty(annotated_slices(i).struct_1)
-%             idx_list = [idx_list, i];
-%         end
-%     end
-    
-    sel = ModelData(p).sel;
-%     annotated_slices(idx_list) = [];
-%     sel(idx_list) = [];
-    
-    ModelFeatures(p).annotated_slices = annotated_slices;
-    ModelFeatures(p).Pid = ModelData(p).Pid;
-    ModelFeatures(p).Datatype = ModelData(p).Datatype;
-    ModelFeatures(p).sel  = sel;
-end
-
 %% Extracted Features for Every Slice for ProTECT Patients
 %% Build Positive Dataset and Negative Dataset for each patient
 %for p = 1:length(ModelData)
-ModelFeatures = [];
-%for p = 1:length(PatientsData_TrauImg)
-for p = 18
+ModelFeatures = struct('annotated_slices', {}, 'annotated_features', {}, 'Pid', {}, 'Datatype', {}, 'mean_intensity', {});
+for p = 1:length(PatientsData)
+%for p = 1
     p
-    brains =  PatientsData(p).brain_pos;
+    brain_pos =  PatientsData(p).brain_pos;
+    brain_neg = PatientsData(p).brain_neg;
+    
+    brains = cat(3, PatientsData(p).brain_pos, PatientsData(p).brain_neg);
+    plist = brains(:);
+    plist(plist==0) = [];
+    intensity_mean = mean(plist);
+    
     annots =  PatientsData(p).annots;
     
-    [~, ~, annotated_slices] = build_dataset(brains, brains, annots);
+    %brain_pos = brain_pos(:,:,1);
+    %annots = annots(:,:,:,1);
+    [annotated_slices, annotated_features] = build_dataset(brain_pos, annots, intensity_mean);
     
     ModelFeatures(p).annotated_slices = annotated_slices;
+    ModelFeatures(p).annotated_features = annotated_features;
     ModelFeatures(p).Pid = PatientsData(p).Pid;
     ModelFeatures(p).Datatype = PatientsData(p).Datatype;
+    ModelFeatures(p).mean_intensity = intensity_mean;
 end
 
 %% GMM output

@@ -69,16 +69,12 @@ function [result, dice_pids] = evaluate_test(PatientsData,  test_index, feature_
             
             
             pred_img = zeros(size(brain));
-            prob_map = zeros(size(brain));
+            
             for i = 1:length(struct_all)
                 
                 if test_pred_y(i)==1
                     pred_img(struct_all(i).PixelIdxList) = 1;
                 end
-            end
-            
-            for i = 1:length(struct_all)
-                   prob_map(struct_all(i).PixelIdxList) =prob(i);
             end
             
             pred_img =  post_processing(brain, pred_img);
@@ -117,7 +113,6 @@ function [result, dice_pids] = evaluate_test(PatientsData,  test_index, feature_
             result(record).brain = brain;
             result(record).annotated_img = annotated_img;
             result(record).pred_mask = pred_img;
-            result(record).prob_map = prob_map;
             
             dice_belows = [dice_belows, dice_below];
             dice_ups = [dice_ups, dice_up];

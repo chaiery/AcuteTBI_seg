@@ -7,15 +7,16 @@ function [train_1_features, train_0_features_edge, train_0_features_remain] = bu
         pid = dataset(tid).Pid;
        
         annotated_slices =dataset(tid).annotated_slices;
+        annotated_features = dataset(tid).annotated_features;
         dice  = [];
         for slice_index = 1:length(annotated_slices)
-            PositiveDataset = [PositiveDataset; annotated_slices(slice_index).struct_1];
+            PositiveDataset = [PositiveDataset, annotated_features(slice_index).struct_1_features];
             
-            negative_samples = annotated_slices(slice_index).struct_0;
+            negative_samples = annotated_features(slice_index).struct_0_features;
             [neg_edge, neg_remain] = find_points_close_to_edge(annotated_slices(slice_index).brain, negative_samples);
             
-            NegativeDataset_edge = [NegativeDataset_edge; neg_edge];
-            NegativeDataset_remain = [NegativeDataset_remain; neg_remain];
+            NegativeDataset_edge = [NegativeDataset_edge, neg_edge];
+            NegativeDataset_remain = [NegativeDataset_remain, neg_remain];
         end
     end
     

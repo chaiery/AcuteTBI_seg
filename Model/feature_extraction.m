@@ -1,4 +1,4 @@
-function [dataset] = feature_extraction(dataset, imgori)
+function [new_dataset] = feature_extraction(dataset, imgori, intensity_mean)
     
     sizeofsub = size(imgori);
     
@@ -15,6 +15,7 @@ function [dataset] = feature_extraction(dataset, imgori)
     
     imgori = pad_brain(imgori, 0.01);
     imgori = imguidedfilter(imgori);
+    intensity_mean_slice = mean(double(imgori(:)));
     
     %% Total variation denoising
 %     img_tv2=PDHG(double(imgori),.05,10^(-3));
@@ -51,6 +52,20 @@ function [dataset] = feature_extraction(dataset, imgori)
         dataset(i).y_range = y1:y1+h;
         dataset(i).x_range = x1:x1+w;
         
+        % if width/height less than 10, extend to 10
+        % for LBP measurement
+        y_center = floor((y1+y1+h)/2);
+        x_center = floor((x1+x1+w)/2);
+        y_range = y1:y1+h;
+        x_range = x1:x1+w;
+        if h<10
+            y_range = y_center-4:y_center+5;
+        end
+        if w<10
+            x_range = x_center-4:x_center+5;
+        end
+        dataset(i).recpatchLBP = imgori(y_range,x_range);
+        
         % Then extend to 32*32
         % Find the center of the recpatch
         y_center = floor((y1+y1+h)/2);
@@ -72,12 +87,35 @@ function [dataset] = feature_extraction(dataset, imgori)
         end
             
         dataset(i).recpatch32 = imgori(y_range,x_range);
-        dataset(i).y_range_32 = y_range;
-        dataset(i).x_range_32 = x_range;
+        %dataset(i).y_range_32 = y_range;
+        %dataset(i).x_range_32 = x_range;
+    end
+    
+    %% 1. Intensity **
+    % Median of pixels' intensities
+    % The number of features: 8
+    %intensity_median = mean(imgori(:));
+    %imgori_2 = imgori - intensity_median;
+    for i = 1: length(dataset)
+        sp_intensity = double(imgori(dataset(i).PixelIdxList));
+        dataset(i).intensity_features = [mean(sp_intensity), var(sp_intensity),skewness(sp_intensity),kurtosis(sp_intensity), ...
+           mean(double(dataset(i).recpatch(:))), var(double(dataset(i).recpatch(:))), ...
+           mean(sp_intensity)/intensity_mean, mean(sp_intensity)/intensity_mean_slice];
+    end
+    
+    %% Saliency
+    % The number of features: 4
+    %img_pad = imguidedfilter(img_pad);
+    smap = saliency_map(imgori);
+    smap(mask) = 0;
+    for i = 1: length(dataset)
+        sintensity = double(smap(dataset(i).PixelIdxList));
+        dataset(i).saliency = [mean(sintensity), var(sintensity),skewness(sintensity),kurtosis(sintensity)];
     end
     
     
     %% Gradient 
+    % The number of features: 7
     [Gmag, Gdir] = imgradient(imgori);
 
     for i = 1:length(dataset)
@@ -90,17 +128,8 @@ function [dataset] = feature_extraction(dataset, imgori)
         direction = d1/abs(d1);
         dataset(i).gradient= [f1,distance,angle,direction];
     end
-    %% 1. Intensity **
-    % Median of pixels' intensities
-    % The number of features: 4
-    %intensity_median = mean(imgori(:));
-    %imgori_2 = imgori - intensity_median;
-    for i = 1: length(dataset)
-        sp_intensity = double(imgori(dataset(i).PixelIdxList));
-        dataset(i).intensity_features = [mean(sp_intensity), var(sp_intensity),skewness(sp_intensity),kurtosis(sp_intensity)];
-    end
     
-    
+      
     %% 2. Entropy calculation
     % The number of features: 1    
     for i = 1:length(dataset)
@@ -363,19 +392,25 @@ function [dataset] = feature_extraction(dataset, imgori)
   
     %% 11. Local binary patterns
     %extractLBPFeatures
-    
-
-    %% Final Features
-    %new_dataset = [];
-    for i = 1: length(dataset)
-        %dataset(i).features = [dataset(i).radon];
-        dataset(i).features = [dataset(i).gradient, dataset(i).intensity_features, dataset(i).entropy, dataset(i).gabor, dataset(i).gabor2 ...
-dataset(i).glcm, dataset(i).dft, dataset(i).wpenergy,dataset(i).contour];
-
+    %The number of features: 10
+    for i = 1:length(dataset)
+        Iroi = dataset(i).recpatchLBP;
+        dataset(i).LBP = double(extractLBPFeatures(Iroi,'NumNeighbors',4));
     end
-
+    
+    %% Final Features
+    new_dataset = struct('features',{}, 'MeanIntensity',{}, 'label',{});
+    for i = 1: length(dataset)
+        features = [dataset(i).intensity_features, dataset(i).saliency, dataset(i).LBP, dataset(i).gradient, dataset(i).entropy, dataset(i).gabor, dataset(i).gabor2 ...
+        dataset(i).glcm, dataset(i).dft, dataset(i).wpenergy,dataset(i).contour];
+        new_dataset(i).features = features;
+        new_dataset(i).MeanIntensity = dataset(i).MeanIntensity;
+        new_dataset(i).label = dataset(i).label;
+        new_dataset(i).PixelIdxList = dataset(i).PixelIdxList;
+    end
     
 end
+
 
 function distance = distance_skull(center, bw_edge, imgori)
     points = find(bw_edge==1);

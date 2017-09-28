@@ -1,27 +1,26 @@
-%%
-PatientsData = ModelFeatures;
-%%
-PatientsData([10,20]) = [];
+
 %%
 feature_index = feature_rank_1(1:100);
 %feature_index = [1:100];
 %%
-pid_index = randsample(48,48);
+pid_index = randsample(24,24); 
 %%
-train_index =pid_index(1:35);
-test_index = pid_index(36:48);
+train_index =pid_index(1:12);
+test_index = pid_index(13:24);
 
 %%
-[train_1_features, train_0_features_edge, train_0_features_remain] = build_train_and_test(PatientsData(train_index));
+[train_1_features, train_0_features_edge, train_0_features_remain] = build_train_and_test(ModelFeatures(train_index));
+
 
 %%
-train_1 = train_1_features(randsample(length(train_1_features), 1000), feature_index);
-train_0_edge = train_0_features(randsample(length(train_0_features), 20000), feature_index);
-train_0_remain = train_0_features(randsample(length(train_0_features), 20000), feature_index);
+train_1 = train_1_features(randsample(length(train_1_features), 8000), feature_index);
+train_0_edge = train_0_features_edge(randsample(length(train_0_features_edge), 4000), feature_index);
+train_0_remain = train_0_features_remain(randsample(length(train_0_features_remain), 4000), feature_index);
 train_features = [train_1; train_0_edge; train_0_remain];
 %train_features = [train_1; train_0_edge];
     
 train_mean = mean(train_features);
+
 train_std = std(train_features,0,1);
 
 train_class = [repelem(1,length(train_1)), repelem(0,length([train_0_edge; train_0_remain]))]';
@@ -29,10 +28,10 @@ train_norm = feature_normalization(train_features, train_mean, train_std);
 %train_norm(:,[2,4]) = [];
 
 %%
-model_SVM = fitcsvm(train_norm, train_class, 'KernelFunction', 'linear','Cost', [0 1;20 0]);
+model_SVM = fitcsvm(train_norm, train_class, 'KernelFunction', 'linear','Cost', [0 2;1 0]);
 
 %%
-[test_1_features, test_0_features_edge, test_0_features_remain] = build_train_and_test(PatientsData(test_index));
+[test_1_features, test_0_features_edge, test_0_features_remain] = build_train_and_test(ModelFeatures(test_index));
 %%
 test_1 = test_1_features(:,feature_index);
 test_0_features = [test_0_features_edge; test_0_features_remain];
@@ -42,6 +41,9 @@ test_class = [repelem(1,length(test_1)), repelem(0,length(test_0))]';
 
 test_norm = feature_normalization(test_features, train_mean, train_std);
 %test_norm(:,[2,4]) = [];
+
+%%
+test_pred_y = trainedModel3.predictFcn(test_norm);
 %% Calculate test sensitivity, specificity, accuracy
 test_pred_y = predict(model_SVM,test_norm);
 
@@ -60,11 +62,15 @@ score_model = fitSVMPosterior(model_SVM);
 figure; plot(X, Y)
 
 %% Evaluate Dice for individual patient
-[result, dice_list] = evaluate_test(ModelFeatures,  test_index, feature_index, train_mean, train_std, model_SVM);
+[result, dice_list] = evaluate_test(ModelFeatures,  pid_index , feature_index, train_mean, train_std, model_SVM);
 
 
 %%
-[result, dice_list] = evaluate_test(ModelFeatures,  1:48, feature_index, means, stds, model_SVM);
+[result, dice_list] = evaluate_test(ModelFeatures,  1:47, feature_index, means, stds, model_SVM);
+
+
+
+%%
 stats = [];
 for i = 1:length(PatientsData)
     brains = cat(3, PatientsData(i).brain_pos, PatientsData(i).brain_neg);

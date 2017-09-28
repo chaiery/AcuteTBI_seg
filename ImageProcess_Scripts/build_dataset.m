@@ -1,45 +1,48 @@
-function [positive_dataset, negative_dataset, annotated_slices] = build_dataset(brain, roi, annotation)
-    positive_dataset = [];
-    negative_dataset = [];
+function [annotated_slices, annotated_features] = build_dataset(brain, annotation, intensity_mean)
+    %positive_dataset = [];
+    %negative_dataset = [];
     dim = size(brain);
+    annotated_slices = struct('struct_1',{}, 'struct_0',{}, 'img_annot',{}, 'brain',{});
+    annotated_features = struct('struct_1_features',{}, 'struct_0_features',{});
     
     if length(dim)==2
         brain_img = brain;
-        roi_img = roi;
         annots_img = annotation;
-        [struct_1, struct_0] = singleimage_process_with_label(brain_img, roi_img, annots_img);
+        [struct_1, struct_0, struct_1_features, struct_0_features] = singleimage_process_with_label(brain_img, annots_img, intensity_mean);
         
         annotated_slices(1).struct_1 = struct_1;
         annotated_slices(1).struct_0 = struct_0;
         annotated_slices(1).img_annot = annots_img;
         annotated_slices(1).brain = brain_img;
-        annotated_slices(1).roi = roi;
         
-        positive_dataset = [positive_dataset; struct_1];
-        negative_dataset = [negative_dataset; struct_0];
+        annotated_features(1).struct_1_features = struct_1_features;
+        annotated_features(1).struct_0_features = struct_0_features;
+        
+        %positive_dataset = [positive_dataset; struct_1];
+        %negative_dataset = [negative_dataset; struct_0];
 
     elseif length(dim)>2
         num = dim(3);
         for i = 1:num
             i
             brain_img = brain(:,:,i);
-            roi_img = roi(:,:,i);
             annots_img =annotation(:,:,:,i);
-            try
-                [struct_1, struct_0] = singleimage_process_with_label(brain_img, roi_img, annots_img);
+            %try
+            [struct_1, struct_0, struct_1_features, struct_0_features] = singleimage_process_with_label(brain_img,  annots_img, intensity_mean);
 
-                positive_dataset = [positive_dataset; struct_1];
-                negative_dataset = [negative_dataset; struct_0];
+            %positive_dataset = [positive_dataset; struct_1];
+            %negative_dataset = [negative_dataset; struct_0];
 
-                annotated_slices(i).struct_1 = struct_1;
-                annotated_slices(i).struct_0 = struct_0;
-                annotated_slices(i).img_annot = annots_img;
-                annotated_slices(i).brain = brain_img;
-                annotated_slices(i).roi = roi;
-            catch
-                annotated_slices(i).struct_1 = [];
-                annotated_slices(i).struct_0 = [];
-            end
+            annotated_slices(i).struct_1 = struct_1;
+            annotated_slices(i).struct_0 = struct_0;
+            annotated_slices(i).img_annot = annots_img;
+            annotated_slices(i).brain = brain_img;
+
+            annotated_features(i).struct_1_features = struct_1_features;
+            annotated_features(i).struct_0_features = struct_0_features;
+            %catch
+
+            %end
         end
     end
 end

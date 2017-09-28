@@ -1,124 +1,56 @@
-function saliency_set = test_saliency(x)
-    ImgDir = '/Users/apple/Dropbox/TBI/al_pool/';
-    ImgFiles = dir(ImgDir);
-    ImgFiles = ImgFiles(~strncmpi('.', {ImgFiles.name},1));
-    ImgDir = '/Users/apple/Dropbox/TBI/Select_for_annotation';
+%%
+imgs = PatientsData(6).brain_pos;
+annots = PatientsData(6).annots;
 
-    fori = ImgFiles(x).name;
+index = 5;
+brain = imgs(:,:,index);
+annot = annots(:,:,:,index);
+figure;imshow(brain)
+figure;imshow(annot)
 
-    imgori = imread([ImgDir,'/',fori]);
-
-    label_img = bwlabel(imgori, 4);
-    rpbox = regionprops(label_img,'BoundingBox');
-
-    y1 = floor(rpbox(1).BoundingBox(1,1));
-    x1 = floor(rpbox(1).BoundingBox(1,2));
-    w = rpbox(1).BoundingBox(1,3);
-    h = rpbox(1).BoundingBox(1,4);
-
-    imgori_sub = imgori(x1-5:x1+h+5,y1-5:y1+w+5);
-    imgori_sub_ori = imgori_sub;
-
-    % Process original images by ajusting contrast
-    win_min = 80;
-    win_width = 255-win_min;
-    imgori_sub_adjust = uint8(double(imgori_sub - win_min)*255 / double(win_width));
-    imgori_sub_adjust  = medfilt2(imgori_sub_adjust);
-
-    % Superpixels
-    [labels, ~] = slicmex(imgori_sub_adjust,1000,8);
-
-    %{
-    figure
-    BW = boundarymask(labels);
-    imshow(imoverlay(img_sub,BW,'cyan'),'InitialMagnification',67)
-    %}
-
-    components = regionprops(labels, imgori_sub_adjust, 'PixelIdxList','MeanIntensity', 'BoundingBox','PixelValues', 'WeightedCentroid');
-    
-    
-    for i = 1:length(components)
-        inten = imgori_sub_adjust(components(i).PixelIdxList);
-        index = find(inten<200);
-        components(i).MeanIntensity = mean(inten(index));
-    end
-    
-    struct_0 = [];
-    index_0 = 1;
-
-    for i = 1:length(components)
-        if components(i).MeanIntensity > 10
-            struct_0(index_0).PixelIdxList = components(i).PixelIdxList;
-            struct_0(index_0).WeightedCentroid = components(i).WeightedCentroid;   
-            struct_0(index_0).MeanIntensity = components(i).MeanIntensity;
-            struct_0(index_0).BoundingBox = components(i).BoundingBox;
-            index_0 = index_0+1;
-        end
-    end
+%%
+img_pad = pad_brain(brain, 0.1);
 
 
-    %struct_all = feature_extraction(struct_0, imgori_sub_adjust, components);
-    dataset = struct_0;
+%%
+sel_index = [97];
+%%
+index = 220; 
+brain = result(index).brain;
+annot = result(index).annotated_img;
+pred = result(index).pred_img_overlap;
 
-    centroids = [];
+figure;imshow(annot)
+figure;imshow(pred)
 
-    for i  = 1:length(components)
-        if components(i).MeanIntensity > 10
-            centroids(end+1,:) = components(i). WeightedCentroid;
-        end
-    end
-    
-    saliency_set = [];
-    for i = 1:length(dataset)
-        distances = pdist2(centroids, dataset(i).WeightedCentroid, 'euclidean');
-        [~, I] = sort(distances);
-        index_near = I(2:5);
-
-        near = cell2mat(arrayfun(@(x) (components(index_near(x)).MeanIntensity-dataset(i).MeanIntensity)^2,1:4,'un',0));
-        
-        value = sum(exp(abs(near)*0.1));
-        saliency_set(end+1) = mean(near);
-    end
-    
-    [~, I] = sort(saliency_set, 'descend');
-    
-    output = imgori_sub;
-    
-    
-    for i = 1:20
-        output(dataset(I(i)).PixelIdxList) = 0;
-    end
-    
-    %{
-    for i = 1:length(dataset)
-        if dataset(i).MeanIntensity>30
-            output(dataset(I(i)).PixelIdxList) = 0;
-        end
-    end
-    %}
-    
-    figure;imshow(imgori_sub);
-    figure;imshow(output);
-    
-end
+%img_pad = pad_brain(brain, 0.1);
+img_pad = pad_brain(brain, 0.01);
+img_pad = imguidedfilter(img_pad);
+out = saliency_map(img_pad);
+out(brain==0) = 0;
+figure;imshow(out)
 
 
-function distance = distance_skull(center, edge, imgori_sub)
-    points = find(edge==1);
-    
-    edge_points = [];
-    for i = 1:length(points)
-        index = points(i);
-        [coor_y, coor_x] = ind2sub(size(imgori_sub),index);
-        %{
-        coor_y = mod(index, size_h);
-        if coor_y == 0
-            coor_x = floor(index/size_h);
-        else
-            coor_x = floor(index/size_h)+1;
-        end 
-        %}
-        edge_points(i,:) = [coor_x, coor_y];
-    end
-    distance = min(pdist2(edge_points,center,'euclidean'));
-end
+%%
+img_pad = pad_brain(brain, 0.01);
+%img_med = imguidedfilter(img_pad);
+%img_med2 = medfilt2(img_pad);
+img_med = img_pad;
+
+[Gx, Gy] = imgradientxy(img_med,'sobel');
+Gx(brain==0)=0;
+Gy(brain==0)=0;
+down = prctile( Gx(:) , 1 );
+up = prctile( Gx(:) , 99 );
+Gx(Gx<down) = down;
+Gx(Gx>up) = up;
+Gx = (double(Gx) - down)/(up-down);
+
+down = prctile( Gy(:) , 1 );
+up = prctile( Gy(:) , 99 );
+Gy(Gy<down) = down;
+Gy(Gy>up) = up;
+Gy = (double(Gy) - down)/(up-down);
+
+imshowpair(Gx, Gy, 'montage');
+

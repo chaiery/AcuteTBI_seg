@@ -1,16 +1,14 @@
-function [struct_1, struct_0] = singleimage_process_with_label(brain, roi, annotation)
+function [struct_1, struct_0, struct_1_features, struct_0_features] = singleimage_process_with_label(brain, annotation, intensity_mean)
 
     % Labeled data
     % Extract Head Region
     %%
-    base_value = brain(1);
-
     num_sp = 10000;
-    [labels, ~] = superpixels(roi,num_sp);
-    components = regionprops(labels, roi, 'PixelIdxList','MeanIntensity', 'BoundingBox','PixelValues', 'WeightedCentroid');
+    [labels, ~] = superpixels(brain,num_sp);
+    components = regionprops(labels, brain, 'PixelIdxList','MeanIntensity', 'BoundingBox','PixelValues', 'WeightedCentroid');
     idx = [];
     for i = 1:length(components)
-        if (components(i).MeanIntensity > base_value)
+        if (components(i).MeanIntensity > 10)
             idx(end+1) = i;
         end
     end
@@ -34,7 +32,7 @@ function [struct_1, struct_0] = singleimage_process_with_label(brain, roi, annot
             end
         end
         
-        if (components(i).MeanIntensity > base_value && components(i).MeanIntensity < 250)
+        if (components(i).MeanIntensity > 0 && components(i).MeanIntensity < 250)
             pixel = components(i).PixelValues;
             rnum = sum(pixel~=0);
             if ((sum(pixel>240)/rnum)<0.5)
@@ -51,12 +49,14 @@ function [struct_1, struct_0] = singleimage_process_with_label(brain, roi, annot
         struct_1 = components(index_1);
         struct_0 = components(index_0);
     end
-
+    
     %%
-    struct_all = feature_extraction([struct_1;struct_0], brain);
+    
+    %%
+    struct_all = feature_extraction([struct_1;struct_0], brain, intensity_mean);
 
-    struct_1 = struct_all(1:length(struct_1));
-    struct_0 = struct_all(length(struct_1)+1:length(struct_all));
+    struct_1_features = struct_all(1:length(struct_1));
+    struct_0_features = struct_all(length(struct_1)+1:length(struct_all));
     
 end
 
