@@ -8,7 +8,7 @@ function [result, dice, volume] = evaluate_demo(PatientsData,  feature_index, tr
     dice_ups = zeros(1, n);
     volume = 0;
     result = zeros(512,512,n);
-    
+    %%
     for slice_index = 1:n
       %%
         struct_0 = annotated_features(slice_index).struct_0_features;
@@ -54,8 +54,6 @@ function [result, dice, volume] = evaluate_demo(PatientsData,  feature_index, tr
         test_pred_y = predict(model_SVM, test_norm);
 
         %%
-        distance = test_norm*model_SVM.Beta+model_SVM.Bias;
-        prob = sigmf(distance,[1,0]);
 
      %%
         %TP = sum(test_class==test_pred_y & test_class==1);
@@ -66,7 +64,6 @@ function [result, dice, volume] = evaluate_demo(PatientsData,  feature_index, tr
 
 
         pred_img = zeros(size(brain));
-        prob_map = zeros(size(brain));
         for i = 1:length(struct_all)
 
             if test_pred_y(i)==1
@@ -74,11 +71,8 @@ function [result, dice, volume] = evaluate_demo(PatientsData,  feature_index, tr
             end
         end
 
-        for i = 1:length(struct_all)
-               prob_map(struct_all(i).PixelIdxList) =prob(i);
-        end
 
-        pred_img =  post_processing(brain, pred_img);
+        pred_img =  post_processing_demo(brain, pred_img);
         pred_img(brain==brain(1))=0;
         pred_list_pos = find(pred_img==1);
         pred_list_neg = find(pred_img==0);
@@ -108,18 +102,10 @@ end
 
 function index_list = find_annotated_pixelList(annotated_img, brain)
 
-    dim = size(annotated_img);
-    index_list = [];
     index_roi = find(brain>brain(1));
-    for i = 1:dim(1)
-        for j = 1:dim(2)
-            value = annotated_img(i,j,:);
-            if value(1)==255&&value(2)==0&&value(3)==0
-                index = sub2ind(size(brain),i,j);
-                index_list = [index_list, index];
-            end
-        end
-    end
     
+    red =zeros(size(annotated_img));
+    red(:,:,1)=255;
+    index_list = find(all((annotated_img==red),3)==1);
     index_list = intersect(index_list, index_roi);
 end

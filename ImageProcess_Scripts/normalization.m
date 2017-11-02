@@ -1,7 +1,7 @@
-function [adjustImgs, normalizedImg,bone,ind, EdgeBone] = normalization(fullImageDirRoot, imgList, startS, endS)
+function [adjustImgs, normalizedImg,bone,fnamelis, EdgeBone] = normalization(DcmDir, DcmList, startS, endS)
     % A list of files in the image directory 
-    %imgList = dir(strcat(fullImageDirRoot, '*'));
-    %imgList = imgList(~strncmpi('.', {imgList.name},1));
+    %DcmList = dir(strcat(DcmDir, '*'));
+    %DcmList = DcmList(~strncmpi('.', {DcmList.name},1));
     bone=[]; 
     EdgeBone=[];
     normalizedImg=[];
@@ -9,9 +9,9 @@ function [adjustImgs, normalizedImg,bone,ind, EdgeBone] = normalization(fullImag
     ind=[];
     fnamelis = [];
    %%
-    for i= 1 : length(imgList)
-        fname = imgList(i).name;
-        inf= dicominfo([fullImageDirRoot, fname]);
+    for i= 1 : length(DcmList)
+        fname = DcmList(i).name;
+        inf= dicominfo([DcmDir, fname]);
         InstanceIdx = inf.InstanceNumber;
         fnamelis(InstanceIdx).fname = fname;
     end
@@ -20,13 +20,15 @@ function [adjustImgs, normalizedImg,bone,ind, EdgeBone] = normalization(fullImag
     %%
     for i= startS : endS
         % Read input file information
-        %inf= dicominfo([fullImageDirRoot,'\',imgList(i).name]);
+        %inf= dicominfo([DcmDir,'\',DcmList(i).name]);
         %if  strcmp (inf.SeriesDescription,'HEAD 5mm STND')
         % If the name of the file in the range
+        %%
         fname = fnamelis(i).fname;
-        inf= dicominfo([fullImageDirRoot, fname]);
+        inf= dicominfo([DcmDir, fname]);
         % Read input image
-        rawImg=dicomread([fullImageDirRoot,imgList(i).name]);
+        rawImg=dicomread([DcmDir,fname]);
+        %%
         
         % Adjust Raw Image for final output
         
@@ -65,8 +67,9 @@ function [adjustImgs, normalizedImg,bone,ind, EdgeBone] = normalization(fullImag
         EdgeBone=cat(3,EdgeBone,edge(bonec));
         bone=cat(3,bone,bonec);
         % ind is an array of file names for each layer
-        ind=[ind;imgList(i).name];
-
+        %ind=[ind;DcmList(i).name];
+        ind = [];
+        
         % filledSkull=imfill(bone1,'holes');
         % hole=filledSkull-bone1; %for sure there's easier way to mask holes
         % CC = bwconncomp(hole);
@@ -81,11 +84,11 @@ function [adjustImgs, normalizedImg,bone,ind, EdgeBone] = normalization(fullImag
     
      % c: CC = connected components
      CC = bwconncomp(bone);
-     numPixels = cellfun(@numel,CC.PixelIdxList);
+     numPixels = cellfun(@numel,[CC.PixelIdxList]);
      [biggest,idx] = max(numPixels);
      bone=zeros(size(bone));
      bone(CC.PixelIdxList{idx})=1;
-     ind=cellstr(ind);
+     %ind=cellstr(ind);
      
      
 end

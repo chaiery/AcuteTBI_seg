@@ -63,7 +63,7 @@ function [brain_pos, annots, brain_neg, InstanceLis, NotAnnot] = BrainImage_pid(
     DcmList = ImgNew;
     
     %[normalizedImg,bone,~,~] = normalization(DcmDir, DcmList, 1, length(DcmList));
-    [brain, startI, endI] = brain_extraction(DcmDir, DcmList);
+    [brain, startI, endI, ~] = brain_extraction(DcmDir, DcmList);
     %location = intersect(find(brain>0), find(brain<250));
     %vec = brain(location);
     %[count,~] = imhist(vec);
@@ -111,7 +111,8 @@ function [brain_pos, annots, brain_neg, InstanceLis, NotAnnot] = BrainImage_pid(
     annots = uint8(annots);
     
     temp = cat(3, brain_pos, brain_neg);
-    [rota_brains, rotate_angle] =  rotate_method(temp);
+    [~, rotate_angle] =  rotate_method(temp);
+    rota_brains = imrotate(temp, rotate_angle,'nearest','crop');
     annots = imrotate(annots,rotate_angle,'nearest','crop');
     rotate_angle
     if ~isempty(InstanceLis)

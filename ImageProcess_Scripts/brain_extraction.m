@@ -1,4 +1,4 @@
-function [brain, startI, endI] = brain_extraction(DcmDir, DcmList)
+function [brain, startI, endI, fnamelis] = brain_extraction(DcmDir, DcmList)
 
 %%
     % Input: patient: patient id
@@ -17,7 +17,7 @@ function [brain, startI, endI] = brain_extraction(DcmDir, DcmList)
 %     
 %     DcmList = ImgNew;
     
-    [adjustImg, normalizedImg,bone,~,~] = normalization(DcmDir, DcmList, 1, length(DcmList));
+    [adjustImg, normalizedImg,bone,fnamelis,~] = normalization(DcmDir, DcmList, 1, length(DcmList));
    
     brain = zeros([512, 512, length(DcmList)]);
     
