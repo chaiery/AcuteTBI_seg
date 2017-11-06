@@ -11,8 +11,8 @@ function [PatientsData] = build_dataset_headSMART(PatientsData)
         
         if length(dim)==2
             features = feature_extraction(brains,  intensity_mean);
-            slices_features(1).features = features;
-            slices_features(1).brain = brains;
+            slices_features(i).features = features;
+            slices_features(i).brain = brains;
 
         elseif length(dim)>2
             num = dim(3);

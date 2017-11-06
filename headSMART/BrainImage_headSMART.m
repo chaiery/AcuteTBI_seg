@@ -6,7 +6,7 @@ function [PatientsData] = BrainImage_headSMART(path)
     patients = patients(~strncmpi('.', {patients.name},1));
     
     for i = 1:length(patients)
-        DcmDir = [patients(1).folder '/' patients(1).name '/'];
+        DcmDir = [patients(i).folder '/' patients(i).name '/'];
         DcmList = dir(DcmDir);
         DcmList = DcmList(~strncmpi('.', {DcmList.name},1));
         
