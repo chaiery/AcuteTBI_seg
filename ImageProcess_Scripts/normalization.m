@@ -1,4 +1,4 @@
-function [adjustImgs, normalizedImg,bone,fnamelis, EdgeBone] = normalization(DcmDir, DcmList, startS, endS)
+function [adjustImgs, normalizedImg,dicomImgs, bone,fnamelis, EdgeBone] = normalization(DcmDir, DcmList, startS, endS)
     % A list of files in the image directory 
     %DcmList = dir(strcat(DcmDir, '*'));
     %DcmList = DcmList(~strncmpi('.', {DcmList.name},1));
@@ -18,6 +18,7 @@ function [adjustImgs, normalizedImg,bone,fnamelis, EdgeBone] = normalization(Dcm
     idx = arrayfun(@(x) isempty(fnamelis(x).fname), 1:length(fnamelis));
     fnamelis(idx) = [];
     %%
+    dicomImgs = zeros(512, 512, length(DcmList));
     for i= startS : endS
         % Read input file information
         %inf= dicominfo([DcmDir,'\',DcmList(i).name]);
@@ -28,6 +29,7 @@ function [adjustImgs, normalizedImg,bone,fnamelis, EdgeBone] = normalization(Dcm
         inf= dicominfo([DcmDir, fname]);
         % Read input image
         rawImg=dicomread([DcmDir,fname]);
+        dicomImgs(:, :, i) = rawImg;
         %%
         
         % Adjust Raw Image for final output

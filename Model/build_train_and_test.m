@@ -5,7 +5,7 @@ function [train_1_features, train_0_features_edge, train_0_features_remain] = bu
     
     for tid = 1:length(dataset)
         pid = dataset(tid).Pid;
-       
+        pid
         annotated_slices =dataset(tid).annotated_slices;
         annotated_features = dataset(tid).annotated_features;
         dice  = [];

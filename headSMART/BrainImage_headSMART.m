@@ -15,7 +15,7 @@ function [PatientsData] = BrainImage_headSMART(path)
         
         meta = [];
         meta.pixel_spacing = inf.PixelSpacing;
-        [brains, meta.startI, meta.endI, meta.fnamelis] = brain_extraction(DcmDir, DcmList);
+        [brains, dicomImgs, meta.startI, meta.endI, meta.fnamelis] = brain_extraction(DcmDir, DcmList);
 
         [~,meta.rotate_angle] =  rotate_method(brains);
         rota_brains = imrotate(brains,meta.rotate_angle,'nearest','crop');

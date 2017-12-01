@@ -1,139 +1,96 @@
-function [result, dice_pids] = evaluate_test(PatientsData,  test_index, feature_index, train_mean, train_std, model_SVM)
-    result = [];
-    record = 0;
-    dice_belows = [];
-    dice_ups = [];
-    dice_pids = [];
-    for testi = 1:length(test_index)
-        
-        tid = test_index(testi);
-        pid = PatientsData(tid).Pid;
-        
-        annotated_slices = PatientsData(tid).annotated_slices;
-        annotated_features = PatientsData(tid).annotated_features;
-        dice  = [];
-        for slice_index = 1:length(annotated_slices)
-          %%
-            struct_0 = annotated_features(slice_index).struct_0_features;
-            if ~isempty(struct_0)
-            record = record+1;
-            annotated_img = annotated_slices(slice_index).img_annot;
-            brain = annotated_slices(slice_index).brain;
-            struct_1 = annotated_features(slice_index).struct_1_features;
-          %%
-            
-            num_features = length(struct_0(1).features);
-            test_1_features = zeros(length(struct_1),num_features);
-            test_0_features = zeros(length(struct_0),num_features);
-            
-            for i = 1:length(struct_1)
-               test_1_features(i,:) = struct_1(i).features;
-            end
-
-            for i = 1:length(struct_0)
-               test_0_features(i,:) = struct_0(i).features;
-            end
-            
-            [a,~]= find(isnan(test_1_features)==1);
-            test_1_features(a,:) = [];
-            struct_1(a) = [];
-          
+function [masks, brains,annots, dice, volume] = evaluate_test(Model_features,  feature_index, train_mean, train_std, model_SVM)
+    annotated_slices = Model_features.annotated_slices;
+    annotated_features = Model_features.annotated_features;
     
-            [a,~]= find(isnan(test_0_features)==1);
-            test_0_features(a,:) = [];
-            struct_0(a) = []; 
-       
-            
-            test_1 = test_1_features(:,feature_index);
-            test_0 = test_0_features(:,feature_index);
-            size_1 = size(test_1);
-            size_0 = size(test_0);
-            test = [test_1; test_0];
-            test_class = [repelem(1,size_1(1)), repelem(0,size_0(1))]';
-            test_norm = feature_normalization(test, train_mean, train_std);
-            
-            %
-            %test_pred_y = predict(model_SVM,test_norm);
-            test_pred_y = predict(model_SVM, test_norm);
-            
-            %%
-            distance = test_norm*model_SVM.Beta+model_SVM.Bias;
-            prob = sigmf(distance,[1,0]);
-            
-         %%
-            %TP = sum(test_class==test_pred_y & test_class==1);
-            %TN = sum(test_class==test_pred_y & test_class==0);
+    n = length(annotated_slices);
+    masks = zeros(512,512,n);
+    annots = zeros(512,512,n);
+    brains = zeros(512,512,n);
+    %%
+    for slice_index = 1:n
+      %%
+        struct_0 = annotated_features(slice_index).struct_0_features;
+        if ~isempty(struct_0)
+        brain = annotated_slices(slice_index).brain;
+        brains(:,:,slice_index) = brain;
+        annots(:,:,slice_index) = find_mask(annotated_slices(slice_index).img_annot, brain);
+        struct_1 = annotated_features(slice_index).struct_1_features;
+      
 
-         %%
-            struct_all = [struct_1, struct_0];
-            
-            
-            pred_img = zeros(size(brain));
-            prob_map = zeros(size(brain));
-            for i = 1:length(struct_all)
-                
-                if test_pred_y(i)==1
-                    pred_img(struct_all(i).PixelIdxList) = 1;
-                end
-            end
-            
-            for i = 1:length(struct_all)
-                   prob_map(struct_all(i).PixelIdxList) =prob(i);
-            end
-            
-            pred_img =  post_processing(brain, pred_img);
-            pred_img(brain==brain(1))=0;
-            pred_list_pos = find(pred_img==1);
-            pred_list_neg = find(pred_img==0);
-            
-            pred_img_overlap = brain;
-            pred_img_overlap(pred_list_pos) = 255;
-            
-            brain_region = find(brain>brain(1));
-            pred_list_neg = intersect(brain_region, pred_list_neg);
-            
-            annotated_pos = find_annotated_pixelList(annotated_img, brain);
-            annotated_neg = setdiff(brain_region, annotated_pos);
-            
-            TP = length(intersect(pred_list_pos, annotated_pos));
-            TN = length(intersect(pred_list_neg, annotated_neg));
-            FP = length(intersect(pred_list_pos, annotated_neg));
-            FN = length(intersect(pred_list_neg, annotated_pos));
-            
-            test_se = TP/(TP+FN);
-            test_sp = TN/(TN+FP);
-            test_acc = (TP+TN)/(TP+TN+FP+FN);
-            test_dice = 2*TP/(length(pred_list_pos)+length(annotated_pos));
-            dice_below = length(pred_list_pos)+length(annotated_pos);
-            dice_up = 2*TP;
-            
-            result(record).test_se = test_se;
-            result(record).test_sp = test_sp;
-            result(record).test_acc = test_acc;
-            result(record).dice = test_dice;
-            result(record).num_pos = length(annotated_pos);
-            result(record).id  = strcat(num2str(pid), '-', num2str(slice_index));
-            result(record).pred_img = pred_img_overlap;
-            result(record).brain = brain;
-            result(record).annotated_img = annotated_img;
-            result(record).pred_mask = pred_img;
-            result(record).prob_map = prob_map;
-            
-            dice_belows = [dice_belows, dice_below];
-            dice_ups = [dice_ups, dice_up];
-            
+        num_features = length(struct_0(1).features);
+        test_1_features = zeros(length(struct_1),num_features);
+        test_0_features = zeros(length(struct_0),num_features);
+
+        for i = 1:length(struct_1)
+           test_1_features(i,:) = struct_1(i).features;
+        end
+
+        for i = 1:length(struct_0)
+           test_0_features(i,:) = struct_0(i).features;
+        end
+
+        [a,~]= find(isnan(test_1_features)==1);
+        test_1_features(a,:) = [];
+        struct_1(a) = [];
+
+
+        [a,~]= find(isnan(test_0_features)==1);
+        test_0_features(a,:) = [];
+        struct_0(a) = []; 
+
+
+        test_1 = test_1_features(:,feature_index);
+        test_0 = test_0_features(:,feature_index);
+        test = [test_1; test_0];
+        test_norm = feature_normalization(test, train_mean, train_std);
+
+        test_pred_y = predict(model_SVM, test_norm);
+        test_pred_y = str2num(cell2mat(test_pred_y ));
+        
+        struct_all = [struct_1, struct_0];
+        pred_img = zeros(size(brain));
+        for i = 1:length(struct_all)
+            if test_pred_y(i)==1
+                pred_img(struct_all(i).PixelIdxList) = 1;
             end
         end
 
-        dice_pids =  [dice_pids, sum(dice_ups)/sum(dice_belows)];
-        dice_ups = [];
-        dice_belows = [];
+        pred_img =  post_processing_demo(brain, pred_img);
+        pred_img(brain==brain(1))=0;
+
+        masks(:,:,slice_index) = pred_img;
+        end
     end
+    
+    %% Now we have predictions for this patient
+    % Integrate 3D information!
+    for slice_index = 2:n-1
+        pred = masks(:,:,slice_index);
+        new_slice = zeros(size(pred));
+        boto = masks(:,:,slice_index-1);
+        abov = masks(:,:,slice_index+1);
+        boto_index = find(boto==1);
+        abov_index =  find(abov==1);
+        context = union(boto_index, abov_index);
+        s = regionprops(logical(pred),'PixelIdxList');
+        for i = 1:length(s)
+            pixel_list = s(i).PixelIdxList;
+            if intersect(pixel_list, context)
+                new_slice(pixel_list) = 1;
+            end
+        end
+        masks(:,:,slice_index) = new_slice;
+    end
+    
+    %%
+    x = masks.*annots;
+    y = masks+annots;
+    dice = 2*sum(x(:))/sum(y(:));
+    volume = sum(masks(:));
 end
-            
 
-function index_list = find_annotated_pixelList(annotated_img, brain)
 
+function mask = find_mask(annotated_img, brain)
     dim = size(annotated_img);
     index_list = [];
     index_roi = find(brain>brain(1));
@@ -146,6 +103,7 @@ function index_list = find_annotated_pixelList(annotated_img, brain)
             end
         end
     end
-    
     index_list = intersect(index_list, index_roi);
+    mask = zeros(size(brain));
+    mask(index_list) = 1;
 end

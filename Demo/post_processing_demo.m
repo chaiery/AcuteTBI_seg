@@ -1,6 +1,6 @@
 function pred = post_processing_demo(brain, pred)
-
-    iter          = 10;         %--# of iterations to be run
+%%
+    iter          = 20;         %--# of iterations to be run
     dt            = .5;           %--time step for update (<.5 to satisfy CFL)
     alpha         = 1;         %--weight for curvature term
     flag_approx   = 5;    
@@ -17,7 +17,7 @@ function pred = post_processing_demo(brain, pred)
         
         if ~isempty(find(rp,1))
             s = regionprops(logical(rp),brain,'Area','PixelIdxList','MeanIntensity');
-            index = ~all([[s.Area]>200; [s.MeanIntensity]>50;[s.MeanIntensity]<150],1);
+            index = ~all([[s.Area]>50; [s.MeanIntensity]>50;[s.MeanIntensity]<150],1);
             s(index) = [];
             
             if ~isempty(s)
@@ -31,13 +31,14 @@ function pred = post_processing_demo(brain, pred)
                 pred(pred>0) = 1;
                 pred(pred<0) = 0;
 
-
+                na = find(isnan(pred)==1);
+                pred(na) = 0;
                 s = regionprops(logical(pred),brain,'Area','PixelIdxList','MeanIntensity');
                 index = [s.Area]<50;
                 s(index) = [];
-                pred = zeros(size(pred));
-                pred(cat(1, s.PixelIdxList))=1;
             end
+            pred = zeros(size(pred));
+            pred(cat(1, s.PixelIdxList))=1;
         end
     end
 end

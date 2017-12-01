@@ -1,65 +1,117 @@
 %% Data Preparation
 
 %% Extract brain imags from each patient
-Patients_Protected = [43, 76, 80, 81, 88, 90, 94, 113, 122, 125, 183, 241, 244, 247, 250, 265, 269, 278, ...
-    280, 284, 297, 308, 320, 332, 380];
-Patients_TrauImg = [147, 149, 176, 177, 180, 190, 209, 212, 222,256, 264, 270, 271, 273, 282, 283, 289,  324, 366, 378, 380, 389, 390];
+%Patients_Protected = [43, 76, 80, 81, 88, 90, 94, 113, 122, 125, 183, 241, 244, 247, 250, 265, 269, 278, ...
+%    280, 284, 297, 308, 320, 332, 380];
+%Patients_TrauImg = [147, 149, 176, 177, 180, 190, 209, 212, 222,256, 264, 270, 271, 273, 282, 283, 289,  324, 366, 378, 380, 389, 390];
 
 %PatientsData = [];
-Patients = Patients_Protected;
+prefix = '/Users/apple/Documents';
+path_proR = [prefix '/Project_Data/TBI/Data_Huge/Data_Protected_Red'];
+path_proG = [prefix '/Project_Data/TBI/Data_Huge/Data_Protected_Green'];
+path_Trau = [prefix '/Project_Data/TBI/Data_Huge/Data_TrauImg_Annotation'];
+path_Trau_img = [prefix '/Project_Data/TBI/Data_Huge/Data_TrauImg'];
+path_Neg = [prefix '/Project_Data/TBI/Data_Huge/Negative'];
+path_Neg_P = [prefix '/Project_Data/TBI/Data_Huge/Negative_Protected'];
+
+PatientsData = struct('brains', {}, 'rota_brains', {}, 'annots', {}, 'dicomImgs', {},...
+    'meta', {}, 'intensity_mean', {}, 'Pid', {}, 'Datatype', {},  'masks', {});
+    
+Patients = dir(path_proR);
+Patients = Patients(~strncmpi('.', {Patients.name},1));
+index = 0;
 for p = 1:length(Patients)
-    p
-    [PatientsData(p).brain_pos,  PatientsData(p).annots, PatientsData(p).brain_neg, ...
-        PatientsData(p).pos_idx, PatientsData(p).neg_idx] = BrainImage_pid(Patients(p), 'Protected');
-    PatientsData(p).Pid = Patients(p);
-    PatientsData(p).Datatype = 'Protected';
+%for p = 1
+    %%
+    index = index + 1;
+    pid = Patients(p).name
+    DcmDir = [path_proR, '/', pid '/' 'DICOM/'];
+    ImgDir = [path_proR, '/', pid '/'];
+    pd = BrainImage_pid( 'Protected', DcmDir, ImgDir);
+    pd.Pid = pid;
+    pd.Datatype = 'Protected_Red';
+    PatientsData(index) = pd;
+    %%
 end
 
-PatientsData_Protected = PatientsData;
-PatientsData = [];
-Patients = Patients_TrauImg;
-for p = 3:length(Patients)
-    p
-    [PatientsData(p).brain_pos,  PatientsData(p).annots, PatientsData(p).brain_neg, ...
-        PatientsData(p).pos_idx, PatientsData(p).neg_idx] = BrainImage_pid(Patients(p), 'TrauImg');
-    PatientsData(p).Pid = Patients(p);
-     PatientsData(p).Datatype = 'TrauImg';
+Patients = dir(path_proG);
+Patients = Patients(~strncmpi('.', {Patients.name},1));
+for p = 1:length(Patients)
+%for p = 1
+    index = index + 1;
+    pid = Patients(p).name
+    DcmDir = [path_proG, '/', pid '/' 'DICOM/'];
+    ImgDir = [path_proG, '/', pid '/'];
+    pd = BrainImage_pid( 'Protected', DcmDir, ImgDir);
+    pd.Pid = pid;
+    pd.Datatype = 'Protected_Green';
+    PatientsData(index) = pd;
 end
-
-PatientsData_TrauImg = PatientsData;
-
-PatientsData = [PatiensData_Protected, PatientsData_TrauImg];
 
 %%
-idx_list = [];
-for i = 1:length(ModelData)
-    if isempty(ModelData(i).brains)
-        idx_list = [idx_list, i];
-    end
+
+Patients = dir(path_Trau);
+Patients = Patients(~strncmpi('.', {Patients.name},1));
+for p = 1:length(Patients)
+%for p = 1
+    index = index + 1;
+    pid = Patients(p).name
+    DcmDir = [path_Trau_img, '/', pid '/'];
+    ImgDir = [path_Trau, '/', pid '/'];
+    pd = BrainImage_pid( 'TrauImg', DcmDir, ImgDir);
+    pd.Pid = pid;
+    pd.Datatype = 'TrauImg';
+    PatientsData(index) = pd;
 end
 
-ModelData(idx_list) = [];
+Patients = dir(path_Neg);
+Patients = Patients(~strncmpi('.', {Patients.name},1));
+for p = 1:length(Patients)
+%for p = 1
+    index = index + 1;
+    pid = Patients(p).name
+    DcmDir = [path_Neg, '/', pid '/'];
+    ImgDir = '';
+    pd = BrainImage_pid( 'Negative', DcmDir, ImgDir);
+    pd.Pid = pid;
+    pd.Datatype = 'Negative';
+    PatientsData(index) = pd;
+end
 
-%% Extracted Features for Every Slice for ProTECT Patients
-%% Build Positive Dataset and Negative Dataset for each patient
+Patients = dir(path_Neg_P);
+Patients = Patients(~strncmpi('.', {Patients.name},1));
+for p = 1:length(Patients)
+%for p = 1
+    index = index + 1;
+    pid = Patients(p).name
+    DcmDir = [path_Neg_P, '/', pid '/DICOM/'];
+    ImgDir = '';
+    pd = BrainImage_pid( 'Protected', DcmDir, ImgDir);
+    pd.Pid = pid;
+    pd.Datatype = 'Negative_Protected';
+    PatientsData(index) = pd;
+end
+
+%% Extracted Features for Every Slice for every Patient
 %for p = 1:length(ModelData)
 ModelFeatures = struct('annotated_slices', {}, 'annotated_features', {}, 'Pid', {}, 'Datatype', {}, 'mean_intensity', {});
-for p = 1:length(PatientsData)
-%for p = 1
+%parfor p = 1:length(PatientsData)
+%parfor p = 1:39
+tic
+parfor p = 1:length(PatientsData)
+ %for p = 1
     p
-    brain_pos =  PatientsData(p).brain_pos;
-    brain_neg = PatientsData(p).brain_neg;
+    brains =  PatientsData(p).rota_brains;
     
-    brains = cat(3, PatientsData(p).brain_pos, PatientsData(p).brain_neg);
     plist = brains(:);
     plist(plist==0) = [];
     intensity_mean = mean(plist);
-    
+      
     annots =  PatientsData(p).annots;
     
     %brain_pos = brain_pos(:,:,1);
     %annots = annots(:,:,:,1);
-    [annotated_slices, annotated_features] = build_dataset(brain_pos, annots, intensity_mean);
+    [annotated_slices, annotated_features] = build_dataset(brains, annots, intensity_mean);
     
     ModelFeatures(p).annotated_slices = annotated_slices;
     ModelFeatures(p).annotated_features = annotated_features;
@@ -67,15 +119,5 @@ for p = 1:length(PatientsData)
     ModelFeatures(p).Datatype = PatientsData(p).Datatype;
     ModelFeatures(p).mean_intensity = intensity_mean;
 end
-
-%% GMM output
-%for i = 1:length(ModelData)
-GMM_output = [];
-for i = 1:length(PatientsData_Protected)
-    BrainImgs = ModelData(i).rota_brains;
-    GMM_output(i).brains = BrainImgs;
-    GMM_output(i).output = GMM_detection(BrainImgs, false);
-    GMM_output(i).annotation = ModelData(i).rota_annots;
-end
-
-GMM_output = evaluate_GMM_output(GMM_output);
+toc
+save('ModelFeatures', 'ModelFeatures', '-v7.3')
