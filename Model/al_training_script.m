@@ -1,30 +1,70 @@
 %%%%% Under development
 %% Build the initial dataset for the first SVM model and pool dataset for active learning
-train_index =pid_index(1:30);
-test_index = pid_index(31:40);
-[train_1_features, train_0_features] = build_train_and_test(PatientsData(train_index));
+% PatientData
+% Train_index
+% Test_index
 
+%% Split the dataset into train set and test set
+% pid_index_pos = randsample(62,62); 
+% pid_index_neg = randsample(30,30)+62; 
+% 
+% train_index =[pid_index_pos(1:50); pid_index_neg(1:25)];
+% test_index = setdiff(1:92, train_index);
+% save('train_index', 'train_index')
+% save('test_index', 'test_index')
 %%
-train_1_features = train_1_features(:,feature_index);
-train_0_features = train_0_features(:,feature_index);
+train_index = load('./SavedData/train_index.mat');
+test_index = load('./SavedData/test_index.mat');
 
-train_features = [train_1_features; train_0_features];
+PD_train = PatientData(train_index);
+PD_test = PatientData(test_index);
+
+[train_1_features, train_0_features_edge, train_0_features_remain] = build_train_and_test(ModelFeatures(train_index));
+[test_1_features, test_0_features_edge, test_0_features_remain] = build_train_and_test(ModelFeatures(test_index));
+% rng('default')
+% index = randperm(length(train_index));
+
+%% The whole training dataset
+train_1_features = train_1_features(:,feature_index);
+train_0_features_edge = train_0_features_edge(:,feature_index);
+train_0_features_remain = train_0_features_remain(:,feature_index);
+
+train_features = [train_1_features; train_0_features_edge; train_0_features_remain];
 train_mean = mean(train_features);
 train_std = std(train_features,0,1);
 
-train_1_pool = train_1_features;
-train_0_pool = train_0_features;
+%The whole test set
+test_1 = test_1_features(:,feature_index);
+test_0_features = [test_0_features_edge; test_0_features_remain];
+test_0 = test_0_features(:,feature_index);
+test_features = [test_1; test_0];
+test_class = [repelem(1,length(test_1)), repelem(0,length(test_0))]';
 
-index = randsample(length(train_1_features),1000);
+test_norm = feature_normalization(test_features, train_mean, train_std);
+
+%% Split the whole training set into initila and active learning pool
+train_1_pool = train_1_features;
+train_0_pool_edge = train_0_features_edge;
+train_0_pool_remain = train_0_features_remain;
+
+initial_size = 2000;
+rng('default')
+index = randsample(length(train_1_features),initial_size);
 train_1_initial = train_1_features(index,:);
 train_1_pool(index,:) = [];
 
-index = randsample(length(train_0_features),20000);
-train_0_initial = train_0_features(index,:);
-train_0_pool(index,:) = [];
+rng('default')
+index = randsample(length(train_0_features_edge),initial_size/2);
+train_0_initial_edge = train_0_features_edge(index,:);
+train_0_poo_edgel(index,:) = [];
 
-train_initial = [train_1_initial; train_0_initial];
-train_initial_class = [repelem(1,length(train_1_initial)), repelem(0,length(train_0_initial))]';
+rng('default')
+index = randsample(length(train_0_features_remain),initial_size/2);
+train_0_initial_remain = train_0_features_remain(index,:);
+train_0_pool_remain(index,:) = [];
+
+train_initial = [train_1_initial; train_0_initial_edge; train_0_initial_remain];
+train_initial_class = [repelem(1,initial_size), repelem(0,initial_size)]';
 train_initial_norm = feature_normalization(train_initial , train_mean, train_std);
 
 train_1_pool_norm = feature_normalization(train_1_pool , train_mean, train_std);

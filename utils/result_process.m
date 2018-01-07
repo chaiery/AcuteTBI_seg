@@ -83,6 +83,5 @@ for i = 1:length(PatientsData)
     imwrite(prob, [path '/' slice_index '_' dice 'prob.png']);
     imwrite(mask, [path '/' slice_index '_' dice 'mask.png']);
     imwrite(salient_map, [path '/' slice_index '_' dice 'saliency.png']);
-    
 end
 
